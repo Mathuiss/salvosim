@@ -1,0 +1,53 @@
+{% extends "base" %}
+{% block title %}SalvoSim — Scenarios{% endblock %}
+
+{% block content %}
+<h1>Scenarios</h1>
+
+{% if scenarios %}
+<article>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Mode</th>
+                <th>Iterations</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in scenarios %}
+            <tr>
+                <td><a href="/scenarios/{{ s.name }}/edit">{{ s.display_name }}</a></td>
+                <td>{{ s.description }}</td>
+                <td>{{ s.execution_mode }}</td>
+                <td>{{ s.iterations | default(value="—") }}</td>
+                <td style="white-space: nowrap;">
+                    <a href="/scenarios/{{ s.name }}/edit" role="button" class="small">Edit</a>
+                    <button hx-post="/simulate/{{ s.name }}"
+                            hx-target="body"
+                            hx-swap="outerHTML"
+                            hx-disabled-elt="this"
+                            class="small">
+                        Run
+                    </button>
+                    <button hx-delete="/scenarios/{{ s.name }}"
+                            hx-target="body"
+                            hx-swap="outerHTML"
+                            hx-confirm="Delete this scenario?"
+                            class="small outline secondary">
+                        Delete
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</article>
+{% else %}
+<p>No scenarios yet. <a href="/scenarios/new">Create one</a>.</p>
+{% endif %}
+
+<a href="/scenarios/new" role="button">New Scenario</a>
+{% endblock %}

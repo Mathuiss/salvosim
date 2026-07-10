@@ -1,0 +1,13 @@
+[package]
+name = "salvosim"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+clap = "4.6.0"
+rand = "0.10.0"
+rand_distr = "0.6.0"
+serde = { version = "1.0.228", features = ["derive"] }
+toml = "1.0.7"
+rocket = "0.5.1"
+rocket_dyn_templates = { version = "0.2.0", features = ["tera"] }

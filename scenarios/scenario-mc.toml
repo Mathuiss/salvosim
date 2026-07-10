@@ -1,0 +1,35 @@
+[scenario]
+name = "Operation Distant Thunder - Multi-Axis Strike"
+description = "10,000 iteration Monte Carlo testing a coordinated multi-domain strike."
+execution_mode = "monte_carlo"
+iterations = 10000
+
+[[defenders]]
+name = "Aegis Cruiser (Primary)"
+staying_power = 4
+magazine_depth = 48
+max_engagement_capacity = 12
+doctrine = "shoot-look-shoot"
+pkd = { type = "uniform_range", min = 0.65, max = 0.85 }
+
+[[defenders]]
+name = "Escort Destroyer"
+staying_power = 3
+magazine_depth = 32
+max_engagement_capacity = 8
+doctrine = "shoot-look-shoot"
+pkd = { type = "uniform_range", min = 0.60, max = 0.80 }
+
+[[attackers]]
+name = "Submarine Strike (Cruise Missiles)"
+target_name = "Aegis Cruiser (Primary)"
+missile_inventory = 24
+salvo_schedule = [24, 0]
+pko = { type = "normal_distribution", mean = 0.80, std_dev = 0.05 }
+
+[[attackers]]
+name = "Air Wing Strike (Anti-Ship Missiles)"
+target_name = "Escort Destroyer"
+missile_inventory = 16
+salvo_schedule = [0, 16]
+pko = { type = "normal_distribution", mean = 0.75, std_dev = 0.08 }

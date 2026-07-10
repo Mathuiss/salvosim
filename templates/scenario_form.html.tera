@@ -1,0 +1,24 @@
+{% extends "base" %}
+{% block title %}SalvoSim — {% if is_new %}New Scenario{% else %}Edit: {{ name }}{% endif %}{% endblock %}
+
+{% block content %}
+<h1>{% if is_new %}New Scenario{% else %}Edit: {{ name }}{% endif %}</h1>
+
+<form method="post" action="/scenarios{% if not is_new %}/{{ name }}{% endif %}">
+    <label for="filename">File Name</label>
+    <input type="text" id="filename" name="filename"
+           value="{% if is_new %}{% else %}{{ name }}.toml{% endif %}"
+           placeholder="my-scenario.toml"
+           required>
+
+    <label for="content">Scenario Definition (TOML)</label>
+    <textarea id="content" name="content" rows="25"
+              style="font-family: monospace; font-size: 0.85rem;"
+              placeholder="Paste or write scenario TOML here...">{{ content }}</textarea>
+
+    <div class="grid">
+        <button type="submit">Save</button>
+        <a href="/scenarios" role="button" class="secondary outline">Cancel</a>
+    </div>
+</form>
+{% endblock %}

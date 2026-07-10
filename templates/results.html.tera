@@ -1,0 +1,144 @@
+{% extends "base" %}
+{% block title %}SalvoSim — Results: {{ result.scenario_name }}{% endblock %}
+
+{% block content %}
+<style>
+    .side-defenders th,
+    .side-defenders .badge {
+        color: #1a73e8;
+    }
+    .side-defenders td:first-child {
+        border-left: 3px solid #1a73e8;
+    }
+    .side-attackers th,
+    .side-attackers .badge {
+        color: #d93025;
+    }
+    .side-attackers td:first-child {
+        border-left: 3px solid #d93025;
+    }
+    .badge {
+        display: inline-block;
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-left: 0.5rem;
+    }
+</style>
+
+<nav>
+    <ul>
+        <li><hgroup>
+            <h1>Results: {{ result.scenario_name }}</h1>
+            <p>Monte Carlo over <strong>{{ result.iterations }}</strong> iterations</p>
+        </hgroup></li>
+    </ul>
+    <ul>
+        <li><a href="/" role="button" class="secondary outline small">Back to Dashboard</a></li>
+    </ul>
+</nav>
+
+{# ── ATTACKERS (red) ──────────────────────────────────────────── #}
+<section>
+    <h2 style="color: #d93025;">
+        ⚔ Attackers
+        <small class="badge" style="color: #d93025;">Offensive</small>
+    </h2>
+
+    {% if result.attackers %}
+    <figure>
+        <table class="side-attackers">
+            <thead>
+                <tr>
+                    <th>Platform</th>
+                    <th>Target</th>
+                    <th>Missiles</th>
+                    <th>PKO</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in result.attackers %}
+                <tr>
+                    <td><strong>{{ a.name }}</strong></td>
+                    <td>{{ a.target_name }}</td>
+                    <td>{{ a.total_missiles }}</td>
+                    <td>{{ a.pko_label }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </figure>
+    {% else %}
+    <p>No attackers defined.</p>
+    {% endif %}
+</section>
+
+{# ── DEFENDERS (blue) ────────────────────────────────────────── #}
+<section>
+    <h2 style="color: #1a73e8;">
+        🛡 Defenders
+        <small class="badge" style="color: #1a73e8;">Defensive</small>
+    </h2>
+
+    {% if result.defenders %}
+    <figure>
+        <table class="side-defenders">
+            <thead>
+                <tr>
+                    <th>Platform</th>
+                    <th>Staying Power</th>
+                    <th>Survival Rate</th>
+                    <th>Avg Hits Taken</th>
+                    <th>Avg Interceptors Fired</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in result.defenders %}
+                <tr>
+                    <td><strong>{{ d.name }}</strong></td>
+                    <td>{{ d.staying_power }}</td>
+                    <td>{{ d.survival_rate | round(precision=2) }}%</td>
+                    <td>{{ d.avg_hits_taken | round(precision=2) }} / {{ d.staying_power }}</td>
+                    <td>{{ d.avg_interceptors_fired | round(precision=2) }} / {{ d.magazine_depth }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </figure>
+    {% else %}
+    <p>No defenders defined.</p>
+    {% endif %}
+</section>
+
+{# ── DETAILS ─────────────────────────────────────────────────── #}
+{% if result.defenders %}
+<section>
+    <h3>Per-Defender Summary</h3>
+    <figure>
+        <table>
+            <thead>
+                <tr>
+                    <th>Platform</th>
+                    <th>Survival Rate</th>
+                    <th>Runs Survived</th>
+                    <th>Avg Hits Taken</th>
+                    <th>Avg Interceptors Fired</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in result.defenders %}
+                <tr class="side-defenders">
+                    <td><strong>{{ d.name }}</strong></td>
+                    <td>{{ d.survival_rate | round(precision=1) }}%</td>
+                    <td>{{ d.survival_count }} / {{ result.iterations }}</td>
+                    <td>{{ d.avg_hits_taken | round(precision=2) }} (of {{ d.staying_power }})</td>
+                    <td>{{ d.avg_interceptors_fired | round(precision=2) }} (of {{ d.magazine_depth }})</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </figure>
+</section>
+{% endif %}
+{% endblock %}
