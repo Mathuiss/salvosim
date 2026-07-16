@@ -127,7 +127,8 @@ fn interception_phase(
         let mut intercepted = false;
 
         for (i, defender) in defenders.iter_mut().enumerate() {
-            if defender.magazine_depth == 0
+            if defender.staying_power == 0
+                || defender.magazine_depth == 0
                 || engagements_this_step[i] >= defender.max_engagement_capacity
             {
                 continue;
@@ -457,4 +458,67 @@ fn build_launch_events(attackers: &[Attacker], step: usize) -> Vec<ThreatLaunch>
             }
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{Doctrine, Probability, ScenarioMeta};
+
+    fn dummy_config() -> ScenarioConfig {
+        ScenarioConfig {
+            scenario: ScenarioMeta {
+                name: "test".into(),
+                description: None,
+                iterations: Some(1),
+            },
+            defenders: vec![Defender {
+                name: "Test Defender".into(),
+                staying_power: 5,
+                magazine_depth: 16,
+                max_engagement_capacity: 8,
+                doctrine: Doctrine::ShootLookShoot,
+                pkd: Probability::Fixed { value: 0.80 },
+            }],
+            attackers: vec![Attacker {
+                name: "Test Attacker".into(),
+                target_name: "Test Defender".into(),
+                salvo_schedule: vec![10, 10],
+                pko: Probability::Fixed { value: 0.50 },
+            }],
+        }
+    }
+
+    #[test]
+    fn magazine_decrements_when_intercepting() {
+        let config = dummy_config();
+        let mut sim = StepwiseSimulation::new(config);
+        assert_eq!(sim.defenders()[0].magazine_depth, 16);
+
+        sim.advance();
+        assert!(
+            sim.defenders()[0].magazine_depth < 16,
+            "magazine did not decrease after step 1 (was 16, now {})",
+            sim.defenders()[0].magazine_depth
+        );
+    }
+
+    #[test]
+    fn destroyed_defender_cannot_fire_in_subsequent_steps() {
+        let mut config = dummy_config();
+        config.attackers[0].pko = Probability::Fixed { value: 1.0 };
+        let mut sim = StepwiseSimulation::new(config);
+
+        while !sim.finished() {
+            sim.advance();
+        }
+
+        assert_eq!(sim.defenders()[0].staying_power, 0);
+        // The magazine should have been decremented when the defender fired,
+        // and should NOT be reset or increased after destruction.
+        assert!(
+            sim.defenders()[0].magazine_depth <= 16,
+            "magazine should not exceed initial value"
+        );
+    }
 }

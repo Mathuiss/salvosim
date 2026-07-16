@@ -15,7 +15,7 @@
                 <li><strong><a href="/" style="--pico-text-decoration: none;">SalvoSim</a></strong></li>
             </ul>
             <ul>
-                <li><a href="/scenarios">Scenarios</a></li>
+                <li><a href="/">Dashboard</a></li>
             </ul>
         </nav>
     </header>

@@ -7,7 +7,7 @@ use rocket_dyn_templates::{Template, context};
 use crate::config;
 use crate::engine;
 use crate::engine::StepwiseSimulation;
-use crate::models::SimulationResult;
+use crate::models::{RunDefender, SimulationResult};
 
 use super::scenario;
 use super::{AppState, InteractiveSession, generate_session_id};
@@ -35,14 +35,6 @@ pub struct SimulateForm {
 pub fn index(state: &State<AppState>) -> Template {
     let scenarios = scenario::list_scenarios(&state.scenarios_dir);
     Template::render("index", context! { scenarios: scenarios })
-}
-
-// ── Scenario listing ─────────────────────────────────────────────
-
-#[get("/scenarios")]
-pub fn list_scenarios(state: &State<AppState>) -> Template {
-    let scenarios = scenario::list_scenarios(&state.scenarios_dir);
-    Template::render("scenarios", context! { scenarios: scenarios })
 }
 
 // ── Scenario creation form ───────────────────────────────────────
@@ -105,7 +97,7 @@ pub fn save_scenario(
     let name = strip_toml_ext(&form.filename);
     scenario::save_scenario(&state.scenarios_dir, &name, &form.content)
         .map_err(|_| Status::BadRequest)?;
-    Ok(Redirect::to(uri!("/scenarios")))
+    Ok(Redirect::to(uri!("/")))
 }
 
 // ── Update existing scenario ─────────────────────────────────────
@@ -126,7 +118,7 @@ pub fn update_scenario(
 
     scenario::save_scenario(&state.scenarios_dir, &new_name, &form.content)
         .map_err(|_| Status::BadRequest)?;
-    Ok(Redirect::to(uri!("/scenarios")))
+    Ok(Redirect::to(uri!("/")))
 }
 
 // ── Delete scenario ──────────────────────────────────────────────
@@ -262,6 +254,18 @@ pub fn interactive_view(session_id: &str, state: &State<AppState>) -> Result<Tem
     let record = sess.history.last();
     let initial = &sess.initial_snapshot;
 
+    // Reorder defenders to match the initial config order for consistent display.
+    let ordered_defenders: Vec<&RunDefender> = initial
+        .iter()
+        .map(|init_d| {
+            sess.sim
+                .defenders()
+                .iter()
+                .find(|d| d.name == init_d.name)
+                .unwrap_or(init_d)
+        })
+        .collect();
+
     // ── Pre-compute chart data from history ──────────────────────────
     // HP over time: one array per defender starting with initial HP.
     let mut hp_names: Vec<&str> = Vec::new();
@@ -284,7 +288,7 @@ pub fn interactive_view(session_id: &str, state: &State<AppState>) -> Result<Tem
 
     // Total interceptors fired per defender (cumulative across all steps).
     let mut total_fired: Vec<u32> = Vec::new();
-    for d in sess.sim.defenders() {
+    for d in &ordered_defenders {
         let init_mag = initial
             .iter()
             .find(|id| id.name == d.name)
@@ -322,7 +326,7 @@ pub fn interactive_view(session_id: &str, state: &State<AppState>) -> Result<Tem
             step: sess.sim.current_step(),
             max_steps: sess.sim.max_steps(),
             is_finished: sess.sim.finished(),
-            defenders: sess.sim.defenders(),
+            defenders: &ordered_defenders,
             record,
             history: &sess.history,
             // chart series
@@ -423,7 +427,6 @@ pub async fn interactive_finish(
 pub fn routes() -> Vec<rocket::Route> {
     routes![
         index,
-        list_scenarios,
         new_scenario_form,
         edit_scenario_form,
         save_scenario,
