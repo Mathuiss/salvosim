@@ -32,6 +32,32 @@
     </ul>
 </nav>
 
+{# ── Action buttons ─────────────────────────────────────────── #}
+<section class="step-nav">
+    {% if not is_finished %}
+    <form method="post" action="/interactive/{{ session_id }}/advance">
+        <button type="submit">Next Step ⤵</button>
+    </form>
+    {% endif %}
+
+    <form method="post" action="/interactive/{{ session_id }}/finish"
+          style="display: inline;">
+        <button type="submit" class="outline">
+            {% if is_finished %}Rerun All{% else %}Finish All Steps{% endif %}
+        </button>
+    </form>
+
+    <form method="post" action="/interactive/{{ session_id }}/reset"
+          style="display: inline;">
+        <button type="submit" class="secondary outline small">Reset</button>
+    </form>
+
+    {% if is_finished %}
+    <p style="margin-top: 1rem;"><em>Simulation complete.
+        <a href="/">Return to dashboard</a> to run Monte Carlo results.</em></p>
+    {% endif %}
+</section>
+
 {% if is_finished and history | length > 0 %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 
@@ -169,7 +195,7 @@
                     <th>Platform</th>
                     <th>HP</th>
                     <th>Ammo</th>
-                    <th>Eng. Capacity</th>
+                    <th>Tot. Interceptors Fired</th>
                     <th>Status</th>
                 </tr>
             </thead>
@@ -185,7 +211,7 @@
                         </div>
                     </td>
                     <td>{{ d.magazine_depth }}</td>
-                    <td>{{ d.max_engagement_capacity }}</td>
+                    <td>{{ total_fired[loop.index0] }}</td>
                     <td>
                         {% if d.staying_power == 0 %}
                         <span class="status-destroyed">DESTROYED</span>
@@ -229,6 +255,7 @@
     <div class="event-defender">
         <strong>{{ ie.defender_name }}</strong> ({{ ie.doctrine_label }})
         fired <strong>{{ ie.interceptors_fired }}</strong> interceptor{{ ie.interceptors_fired | pluralize }}
+        → <strong>{{ ie.threats_intercepted }}</strong> hit{{ ie.threats_intercepted | pluralize }}
         (capacity: {{ ie.max_engagement_capacity }})
     </div>
     {% endfor %}
@@ -267,31 +294,5 @@
     {% endif %}
 </section>
 {% endif %}
-
-{# ── Action buttons ─────────────────────────────────────────── #}
-<section class="step-nav">
-    {% if not is_finished %}
-    <form method="post" action="/interactive/{{ session_id }}/advance">
-        <button type="submit">Next Step ⤵</button>
-    </form>
-    {% endif %}
-
-    <form method="post" action="/interactive/{{ session_id }}/finish"
-          style="display: inline;">
-        <button type="submit" class="outline">
-            {% if is_finished %}Rerun All{% else %}Finish All Steps{% endif %}
-        </button>
-    </form>
-
-    <form method="post" action="/interactive/{{ session_id }}/reset"
-          style="display: inline;">
-        <button type="submit" class="secondary outline small">Reset</button>
-    </form>
-
-    {% if is_finished %}
-    <p style="margin-top: 1rem;"><em>Simulation complete. 
-        <a href="/">Return to dashboard</a> to run Monte Carlo results.</em></p>
-    {% endif %}
-</section>
 
 {% endblock %}

@@ -1,0 +1,163 @@
+[scenario]
+name = "Operation Steel Hammer — Strike on Protected Facility"
+description = "A 4-wave strike package fights through a layered Russian IADS to destroy a hardened command bunker."
+iterations = 5000
+
+# ── DEFENDERS ─────────────────────────────────────────────────────
+# Layered Russian IADS protecting a hardened command bunker.
+# The attacker must degrade each layer before the facility becomes reachable.
+
+[[defenders]]
+name = "Protected Hardened Bunker"
+staying_power = 8
+magazine_depth = 0
+max_engagement_capacity = 0
+doctrine = "shoot-look-shoot"
+pkd = { type = "fixed", value = 0.0 }
+
+[[defenders]]
+name = "S-400 Triumf (Long-Range SAM)"
+staying_power = 5
+magazine_depth = 48
+max_engagement_capacity = 12
+doctrine = "shoot-look-shoot"
+pkd = { type = "uniform_range", min = 0.75, max = 0.90 }
+
+[[defenders]]
+name = "S-300VM Antey-2500 (Long-Range SAM)"
+staying_power = 4
+magazine_depth = 36
+max_engagement_capacity = 10
+doctrine = "shoot-look-shoot"
+pkd = { type = "uniform_range", min = 0.65, max = 0.85 }
+
+[[defenders]]
+name = "Buk-M3 (Medium-Range SAM)"
+staying_power = 3
+magazine_depth = 24
+max_engagement_capacity = 8
+doctrine = "shoot-look-shoot"
+pkd = { type = "uniform_range", min = 0.60, max = 0.80 }
+
+[[defenders]]
+name = "Tor-M2 (Short-Range SAM)"
+staying_power = 2
+magazine_depth = 16
+max_engagement_capacity = 8
+doctrine = "shoot-look-shoot"
+pkd = { type = "uniform_range", min = 0.65, max = 0.85 }
+
+[[defenders]]
+name = "Pantsir-S1 (Close Defense)"
+staying_power = 2
+magazine_depth = 12
+max_engagement_capacity = 6
+doctrine = "shoot-look-shoot"
+pkd = { type = "uniform_range", min = 0.50, max = 0.70 }
+
+[[defenders]]
+name = "Pantsir-S1 (Facility Perimeter)"
+staying_power = 2
+magazine_depth = 12
+max_engagement_capacity = 6
+doctrine = "shoot-look-shoot"
+pkd = { type = "uniform_range", min = 0.50, max = 0.70 }
+
+# ── ATTACKERS ─────────────────────────────────────────────────────
+# Multi-wave strike sequenced over 4 time steps.
+
+# ── Wave 1 — Saturation & Suppression ──────────────────────────
+# Decoys soak up S-400/S-300 interceptors. SEAD flights target radar emissions.
+
+[[attackers]]
+name = "ADM-160 MALD Decoys"
+target_name = "S-400 Triumf (Long-Range SAM)"
+salvo_schedule = [16, 0, 0, 0]
+pko = { type = "fixed", value = 0.0 }
+
+[[attackers]]
+name = "F-16CJ SEAD Flight (HARM)"
+target_name = "S-400 Triumf (Long-Range SAM)"
+salvo_schedule = [8, 0, 0, 0]
+pko = { type = "fixed", value = 0.70 }
+
+[[attackers]]
+name = "F-35A SEAD (JSM)"
+target_name = "S-300VM Antey-2500 (Long-Range SAM)"
+salvo_schedule = [4, 0, 0, 0]
+pko = { type = "normal_distribution", mean = 0.85, std_dev = 0.05 }
+
+[[attackers]]
+name = "UAV Strike Swarm (Small Munitions)"
+target_name = "Buk-M3 (Medium-Range SAM)"
+salvo_schedule = [20, 0, 0, 0]
+pko = { type = "fixed", value = 0.40 }
+
+# ── Wave 2 — IADS Degradation ──────────────────────────────────
+# Mass cruise missile salvo to overwhelm and destroy long-range SAMs.
+
+[[attackers]]
+name = "B-52H Stratofortress (JASSM-ER)"
+target_name = "S-400 Triumf (Long-Range SAM)"
+salvo_schedule = [0, 20, 0, 0]
+pko = { type = "normal_distribution", mean = 0.80, std_dev = 0.06 }
+
+[[attackers]]
+name = "Tomahawk Salvo (Surface Ships)"
+target_name = "S-300VM Antey-2500 (Long-Range SAM)"
+salvo_schedule = [0, 16, 0, 0]
+pko = { type = "fixed", value = 0.80 }
+
+[[attackers]]
+name = "F/A-18E Strike Flight (JSOW)"
+target_name = "Buk-M3 (Medium-Range SAM)"
+salvo_schedule = [0, 16, 0, 0]
+pko = { type = "normal_distribution", mean = 0.75, std_dev = 0.07 }
+
+# ── Wave 3 — Breakthrough & Facility Strike ────────────────────
+# Saturation of close-in defenses opens a corridor for the main strike.
+
+[[attackers]]
+name = "MGM-140 ATACMS Battery"
+target_name = "Tor-M2 (Short-Range SAM)"
+salvo_schedule = [0, 0, 12, 0]
+pko = { type = "fixed", value = 0.85 }
+
+[[attackers]]
+name = "F-15E Strike Flight (SDB)"
+target_name = "Pantsir-S1 (Close Defense)"
+salvo_schedule = [0, 0, 12, 0]
+pko = { type = "normal_distribution", mean = 0.75, std_dev = 0.08 }
+
+[[attackers]]
+name = "B-1B Lancer (JASSM)"
+target_name = "Protected Hardened Bunker"
+salvo_schedule = [0, 6, 6, 6]
+pko = { type = "normal_distribution", mean = 0.80, std_dev = 0.05 }
+
+[[attackers]]
+name = "F-35A Strike (GBU-53/B)"
+target_name = "Protected Hardened Bunker"
+salvo_schedule = [0, 0, 6, 0]
+pko = { type = "normal_distribution", mean = 0.85, std_dev = 0.05 }
+
+# ── Wave 4 — Re-strike & Mop-up ────────────────────────────────
+# Survivors re-attack the facility and suppress any remaining SAMs.
+
+[[attackers]]
+name = "F/A-18E Follow-Up (JSOW)"
+target_name = "Protected Hardened Bunker"
+salvo_schedule = [0, 0, 0, 12]
+pko = { type = "normal_distribution", mean = 0.75, std_dev = 0.07 }
+
+[[attackers]]
+name = "Tomahawk Salvo (Submarine)"
+target_name = "Pantsir-S1 (Facility Perimeter)"
+salvo_schedule = [0, 0, 0, 12]
+pko = { type = "fixed", value = 0.80 }
+
+[[attackers]]
+name = "B-52H Re-Strike (JASSM-ER)"
+target_name = "Protected Hardened Bunker"
+salvo_schedule = [0, 0, 0, 8]
+pko = { type = "normal_distribution", mean = 0.80, std_dev = 0.06 }

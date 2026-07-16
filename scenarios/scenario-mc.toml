@@ -22,13 +22,11 @@ pkd = { type = "uniform_range", min = 0.60, max = 0.80 }
 [[attackers]]
 name = "Submarine Strike (Cruise Missiles)"
 target_name = "Aegis Cruiser (Primary)"
-missile_inventory = 24
 salvo_schedule = [24, 0]
 pko = { type = "normal_distribution", mean = 0.80, std_dev = 0.05 }
 
 [[attackers]]
 name = "Air Wing Strike (Anti-Ship Missiles)"
 target_name = "Escort Destroyer"
-missile_inventory = 16
 salvo_schedule = [0, 16]
 pko = { type = "normal_distribution", mean = 0.75, std_dev = 0.08 }

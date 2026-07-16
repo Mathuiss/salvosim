@@ -21,13 +21,11 @@ pkd = { type = "fixed", value = 0.60 }
 [[attackers]]
 name = "Drone Swarm (Decoys)"
 target_name = "Coastal SAM Battery"
-missile_inventory = 12
 salvo_schedule = [6, 6, 0]
 pko = { type = "fixed", value = 0.10 }
 
 [[attackers]]
 name = "Precision Strike Aircraft"
 target_name = "Bunker Point Defense"
-missile_inventory = 8
 salvo_schedule = [0, 0, 8]
 pko = { type = "fixed", value = 0.90 }

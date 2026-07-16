@@ -47,6 +47,8 @@ pub struct ScenarioConfig {
 #[derive(Debug, Deserialize, Clone)]
 pub struct ScenarioMeta {
     pub name: String,
+    /// This field is read by TOML deserialization and Tera templates only.
+    #[allow(dead_code)]
     pub description: Option<String>,
     pub iterations: Option<u32>,
 }
@@ -65,7 +67,6 @@ pub struct Defender {
 pub struct Attacker {
     pub name: String,
     pub target_name: String,
-    pub missile_inventory: u32,
     pub salvo_schedule: Vec<u32>,
     pub pko: Probability,
 }
@@ -215,6 +216,7 @@ pub struct InterceptionEvent {
     pub defender_name: String,
     pub doctrine_label: String,
     pub interceptors_fired: u32,
+    pub threats_intercepted: u32,
     pub max_engagement_capacity: u32,
 }
 

@@ -282,6 +282,17 @@ pub fn interactive_view(session_id: &str, state: &State<AppState>) -> Result<Tem
         }
     }
 
+    // Total interceptors fired per defender (cumulative across all steps).
+    let mut total_fired: Vec<u32> = Vec::new();
+    for d in sess.sim.defenders() {
+        let init_mag = initial
+            .iter()
+            .find(|id| id.name == d.name)
+            .map(|id| id.magazine_depth)
+            .unwrap_or(d.magazine_depth);
+        total_fired.push(init_mag.saturating_sub(d.magazine_depth));
+    }
+
     // Missile flow per step: incoming vs intercepted vs survived.
     let mut mf_step: Vec<usize> = Vec::new();
     let mut mf_incoming: Vec<u32> = Vec::new();
@@ -323,6 +334,7 @@ pub fn interactive_view(session_id: &str, state: &State<AppState>) -> Result<Tem
             mf_survived,
             int_step,
             int_fired,
+            total_fired,
         },
     ))
 }

@@ -41,7 +41,7 @@ pub fn run_monte_carlo(config: &ScenarioConfig) -> SimulationResult {
             sort_by_pkd(&mut run_defenders);
 
             // Defenders attempt to intercept incoming threats.
-            let surviving = interception_phase(&mut run_defenders, &threat_pool, &mut rng);
+            let (surviving, _) = interception_phase(&mut run_defenders, &threat_pool, &mut rng);
 
             // Unintercepted threats roll for terminal impact.
             terminal_impact_phase(&mut run_defenders, &surviving, &mut rng);
@@ -115,11 +115,13 @@ fn interception_phase(
     defenders: &mut [RunDefender],
     threat_pool: &[IncomingThreat],
     rng: &mut impl Rng,
-) -> Vec<IncomingThreat> {
+) -> (Vec<IncomingThreat>, Vec<u32>) {
     let mut surviving: Vec<IncomingThreat> = Vec::new();
     // Track how many engagements each defender has performed this step
     // so we respect `max_engagement_capacity`.
     let mut engagements_this_step = vec![0; defenders.len()];
+    // Track how many threats each defender successfully intercepted.
+    let mut intercepts: Vec<u32> = vec![0; defenders.len()];
 
     for threat in threat_pool {
         let mut intercepted = false;
@@ -137,6 +139,7 @@ fn interception_phase(
                     defender.magazine_depth -= 1;
                     engagements_this_step[i] += 1;
                     if rng.random::<f64>() <= defender.pkd {
+                        intercepts[i] += 1;
                         intercepted = true;
                         break;
                     }
@@ -157,6 +160,7 @@ fn interception_phase(
                         }
                     }
                     if intercepted {
+                        intercepts[i] += 1;
                         break;
                     }
                 }
@@ -168,7 +172,7 @@ fn interception_phase(
         }
     }
 
-    surviving
+    (surviving, intercepts)
 }
 
 fn terminal_impact_phase(
@@ -343,7 +347,8 @@ impl StepwiseSimulation {
 
         // 4. Interception — compute events from magazine depth diff.
         let before_int = self.defenders.clone();
-        let surviving = interception_phase(&mut self.defenders, &threat_pool, &mut self.rng);
+        let (surviving, intercept_counts) =
+            interception_phase(&mut self.defenders, &threat_pool, &mut self.rng);
         let interceptions: Vec<InterceptionEvent> = self
             .defenders
             .iter()
@@ -354,6 +359,7 @@ impl StepwiseSimulation {
                     defender_name: after.name.clone(),
                     doctrine_label: after.doctrine.label().to_string(),
                     interceptors_fired: before.magazine_depth - after.magazine_depth,
+                    threats_intercepted: intercept_counts[i],
                     max_engagement_capacity: after.max_engagement_capacity,
                 }
             })
