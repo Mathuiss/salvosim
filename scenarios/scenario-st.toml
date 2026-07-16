@@ -1,7 +1,6 @@
 [scenario]
 name = "Tactical Briefing - IADS Penetration"
 description = "Interactive step-through demonstrating IADS penetration."
-execution_mode = "interactive_step"
 
 [[defenders]]
 name = "Coastal SAM Battery"

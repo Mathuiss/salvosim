@@ -6,14 +6,34 @@ use std::net::IpAddr;
 use std::path::PathBuf;
 use std::sync::RwLock;
 
+use rand::RngExt;
 use rocket::config::Config;
 
-use crate::models::SimulationResult;
+use crate::engine::StepwiseSimulation;
+use crate::models::{RunDefender, SimulationResult, StepRecord};
+
+/// An interactive step-through session with full step history.
+pub struct InteractiveSession {
+    pub sim: StepwiseSimulation,
+    pub history: Vec<StepRecord>,
+    pub initial_snapshot: Vec<RunDefender>,
+    pub scenario_file: String,
+}
 
 /// Shared application state held by Rocket.
 pub struct AppState {
     pub results: RwLock<HashMap<String, SimulationResult>>,
+    pub sessions: RwLock<HashMap<String, InteractiveSession>>,
+    pub session_scenario: RwLock<HashMap<String, String>>,
     pub scenarios_dir: PathBuf,
+}
+
+/// Generate a short random session id.
+pub fn generate_session_id() -> String {
+    // Use random_range for a u64 value (available via RngExt from the root).
+    let mut rng = rand::rng();
+    let suffix: u64 = rng.random_range(0..u64::MAX);
+    format!("sess_{suffix:016x}")
 }
 
 /// Launch the Rocket web server and block until shutdown.
@@ -55,6 +75,8 @@ pub async fn serve(addr: &str) -> Result<(), rocket::Error> {
     let rocket = rocket::custom(config)
         .manage(AppState {
             results: RwLock::new(HashMap::new()),
+            sessions: RwLock::new(HashMap::new()),
+            session_scenario: RwLock::new(HashMap::new()),
             scenarios_dir,
         })
         .mount("/", handlers::routes())

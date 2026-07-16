@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
-use rand::{Rng, RngExt};
+use rand::rngs::StdRng;
+use rand::{Rng, RngExt, SeedableRng};
 
 use crate::models::{
-    Attacker, AttackerResult, Defender, DefenderResult, DefenderStats, Doctrine, IncomingThreat,
-    RunDefender, ScenarioConfig, SimulationResult,
+    Attacker, AttackerResult, Defender, DefenderResult, DefenderStats, Doctrine, ImpactEvent,
+    IncomingThreat, InterceptionEvent, RunDefender, ScenarioConfig, SimulationResult, StepRecord,
+    ThreatLaunch,
 };
 
 /// Run a full Monte Carlo simulation and return structured results.
@@ -272,4 +274,181 @@ pub fn print_result(result: &SimulationResult) {
         );
         println!("------------------------------------------------------------");
     }
+}
+
+// ============================================================
+// STEP-THROUGH STATE MACHINE
+// ============================================================
+
+/// Drives an interactive step-through simulation, one time step at a time.
+pub struct StepwiseSimulation {
+    config: ScenarioConfig,
+    defenders: Vec<RunDefender>,
+    step: usize,
+    max_steps: usize,
+    rng: StdRng,
+    finished: bool,
+}
+
+impl StepwiseSimulation {
+    /// Initialise a new step-through simulation from a scenario config.
+    /// Resolves PkD values for each defender for this run.
+    pub fn new(config: ScenarioConfig) -> Self {
+        let max_steps = determine_max_steps(&config.attackers);
+        let mut rng = StdRng::from_rng(&mut rand::rng());
+        let defenders = initialize_run(&config.defenders, &mut rng);
+        StepwiseSimulation {
+            config,
+            defenders,
+            step: 0,
+            max_steps,
+            rng,
+            finished: max_steps == 0,
+        }
+    }
+
+    /// Advance one time step and return the events for that step.
+    /// Returns `None` if the simulation is already complete.
+    pub fn advance(&mut self) -> Option<StepRecord> {
+        if self.finished {
+            return None;
+        }
+
+        let step = self.step;
+        self.step += 1;
+        let is_complete = self.step >= self.max_steps;
+        if is_complete {
+            self.finished = true;
+        }
+
+        // 1. Generate threat pool for this step.
+        let threat_pool = generate_threat_pool(&self.config.attackers, step, &mut self.rng);
+        let threat_launches = build_launch_events(&self.config.attackers, step);
+
+        // 2. Empty step — nothing happens.
+        if threat_pool.is_empty() {
+            return Some(StepRecord {
+                step,
+                max_steps: self.max_steps,
+                is_complete,
+                threat_launches,
+                interceptions: vec![],
+                impacts: vec![],
+                defender_snapshots: self.defenders.clone(),
+            });
+        }
+
+        // 3. Sort defenders by PkD (best shooter first).
+        sort_by_pkd(&mut self.defenders);
+
+        // 4. Interception — compute events from magazine depth diff.
+        let before_int = self.defenders.clone();
+        let surviving = interception_phase(&mut self.defenders, &threat_pool, &mut self.rng);
+        let interceptions: Vec<InterceptionEvent> = self
+            .defenders
+            .iter()
+            .enumerate()
+            .map(|(i, after)| {
+                let before = &before_int[i];
+                InterceptionEvent {
+                    defender_name: after.name.clone(),
+                    doctrine_label: after.doctrine.label().to_string(),
+                    interceptors_fired: before.magazine_depth - after.magazine_depth,
+                    max_engagement_capacity: after.max_engagement_capacity,
+                }
+            })
+            .filter(|e| e.interceptors_fired > 0)
+            .collect();
+
+        // 5. Terminal impact — compute events from hits_taken / staying_power diff.
+        let before_imp = self.defenders.clone();
+        terminal_impact_phase(&mut self.defenders, &surviving, &mut self.rng);
+
+        // Count threats leaked per target.
+        let mut leaked_per_target: HashMap<String, u32> = HashMap::new();
+        for threat in &surviving {
+            *leaked_per_target
+                .entry(threat.target_name.clone())
+                .or_insert(0) += 1;
+        }
+
+        let impacts: Vec<ImpactEvent> = self
+            .defenders
+            .iter()
+            .enumerate()
+            .map(|(i, after)| {
+                let before = &before_imp[i];
+                let hits_scored = after.hits_taken - before.hits_taken;
+                let leaked = leaked_per_target.get(&after.name).copied().unwrap_or(0);
+                ImpactEvent {
+                    target_name: after.name.clone(),
+                    missiles_leaked: leaked,
+                    hits_scored,
+                    hp_before: before.staying_power,
+                    hp_after: after.staying_power,
+                    destroyed: after.staying_power == 0,
+                }
+            })
+            .filter(|e| e.hits_scored > 0 || e.missiles_leaked > 0)
+            .collect();
+
+        Some(StepRecord {
+            step,
+            max_steps: self.max_steps,
+            is_complete,
+            threat_launches,
+            interceptions,
+            impacts,
+            defender_snapshots: self.defenders.clone(),
+        })
+    }
+
+    /// Whether the simulation has no more steps.
+    pub fn finished(&self) -> bool {
+        self.finished
+    }
+
+    /// Current step index (0-based).
+    pub fn current_step(&self) -> usize {
+        self.step
+    }
+
+    /// Total number of steps.
+    pub fn max_steps(&self) -> usize {
+        self.max_steps
+    }
+
+    /// Scenario name for display.
+    pub fn scenario_name(&self) -> &str {
+        &self.config.scenario.name
+    }
+
+    /// Current defender state snapshot.
+    pub fn defenders(&self) -> &[RunDefender] {
+        &self.defenders
+    }
+}
+
+/// Build launch event records for a given step.
+fn build_launch_events(attackers: &[Attacker], step: usize) -> Vec<ThreatLaunch> {
+    attackers
+        .iter()
+        .filter_map(|atk| {
+            if step < atk.salvo_schedule.len() {
+                let n = atk.salvo_schedule[step];
+                if n > 0 {
+                    Some(ThreatLaunch {
+                        attacker_name: atk.name.clone(),
+                        target_name: atk.target_name.clone(),
+                        missiles_fired: n,
+                        pko_label: atk.pko.label(),
+                    })
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+        .collect()
 }

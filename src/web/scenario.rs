@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use serde::Serialize;
 
@@ -10,7 +10,6 @@ pub struct ScenarioInfo {
     pub name: String,
     pub display_name: String,
     pub description: String,
-    pub execution_mode: String,
 }
 
 /// List all `.toml` scenario files in the given directory.
@@ -68,6 +67,7 @@ pub fn delete_scenario(dir: &Path, name: &str) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     #[test]
     fn debug_check_scenarios_directory() {
@@ -162,16 +162,10 @@ fn load_info(path: &Path) -> Option<ScenarioInfo> {
         .and_then(|d| d.as_str())
         .unwrap_or("")
         .to_string();
-    let execution_mode = scenario
-        .get("execution_mode")
-        .and_then(|m| m.as_str())
-        .unwrap_or("")
-        .to_string();
 
     Some(ScenarioInfo {
         name,
         display_name,
         description,
-        execution_mode,
     })
 }

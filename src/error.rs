@@ -1,7 +1,17 @@
+use std::fmt;
+
 #[derive(Debug)]
 pub struct SalvoSimError {
     msg: String,
 }
+
+impl fmt::Display for SalvoSimError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.msg)
+    }
+}
+
+impl std::error::Error for SalvoSimError {}
 
 impl SalvoSimError {
     pub fn msg(msg: impl Into<String>) -> Self {
@@ -12,7 +22,7 @@ impl SalvoSimError {
 impl From<ConfigLoadError> for SalvoSimError {
     fn from(value: ConfigLoadError) -> Self {
         Self {
-            msg: format!("{:?}", value),
+            msg: value.to_string(),
         }
     }
 }
@@ -21,6 +31,14 @@ impl From<ConfigLoadError> for SalvoSimError {
 pub struct ConfigLoadError {
     msg: String,
 }
+
+impl fmt::Display for ConfigLoadError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.msg)
+    }
+}
+
+impl std::error::Error for ConfigLoadError {}
 
 impl From<std::io::Error> for ConfigLoadError {
     fn from(value: std::io::Error) -> Self {

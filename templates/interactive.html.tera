@@ -1,0 +1,297 @@
+{% extends "base" %}
+{% block title %}SalvoSim — Step Through: {{ scenario_name }}{% endblock %}
+
+{% block content %}
+<style>
+    .hp-bar { display: flex; align-items: center; gap: 0.3rem; }
+    .hp-fill { height: 0.6rem; border-radius: 3px; background: #1a73e8; min-width: 2px; }
+    .hp-fill.damaged { background: #e37400; }
+    .hp-fill.critical { background: #d93025; }
+    .hp-empty { height: 0.6rem; border-radius: 3px; background: #e0e0e0; flex: 1; }
+    .event-attacker { border-left: 3px solid #d93025; padding-left: 0.5rem; margin: 0.5rem 0; }
+    .event-defender { border-left: 3px solid #1a73e8; padding-left: 0.5rem; margin: 0.5rem 0; }
+    .event-impact { border-left: 3px solid #e37400; padding-left: 0.5rem; margin: 0.5rem 0; }
+    .status-destroyed { color: #d93025; font-weight: 700; }
+    .status-damaged { color: #e37400; font-weight: 600; }
+    .status-ok { color: #1a73e8; }
+    .step-nav { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 1rem 0; }
+    .step-nav form { display: inline; }
+</style>
+
+<nav>
+    <ul>
+        <li><hgroup>
+            <h1>{{ scenario_name }}</h1>
+            <p>Step <strong>{{ step }}</strong> of <strong>{{ max_steps }}</strong>
+                {% if is_finished %} — <span style="color:#1a73e8;">Complete</span>{% endif %}
+            </p>
+        </hgroup></li>
+    </ul>
+    <ul>
+        <li><a href="/" role="button" class="secondary outline small">Back to Dashboard</a></li>
+    </ul>
+</nav>
+
+{% if is_finished and history | length > 0 %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+
+<div class="grid" style="grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 2rem;">
+    <article style="padding: 0.5rem;">
+        <h5 style="color: #1a73e8; margin: 0 0 0.3rem 0;">🛡 HP Over Time</h5>
+        <canvas id="chart-hp" height="150"></canvas>
+    </article>
+    <article style="padding: 0.5rem;">
+        <h5 style="color: #d93025; margin: 0 0 0.3rem 0;">⚔ Missile Flow</h5>
+        <canvas id="chart-missile" height="150"></canvas>
+    </article>
+    <article style="padding: 0.5rem;">
+        <h5 style="color: #1a73e8; margin: 0 0 0.3rem 0;">🛡 Interceptors</h5>
+        <canvas id="chart-interceptors" height="150"></canvas>
+    </article>
+</div>
+
+<script>
+(function() {
+    const palette = ['#1a73e8', '#e37400', '#34a853', '#d93025', '#9334e6', '#f9ab00'];
+
+    // ── HP Over Time ───────────────────────────────────────────
+    const hpLabels = [{% for i in range(end=(hp_series[0] | length)) %}{{ i }}{% if not loop.last %},{% endif %}{% endfor %}];
+    new Chart(document.getElementById('chart-hp'), {
+        type: 'line',
+        data: {
+            labels: hpLabels,
+            datasets: [
+                {% for name in hp_names %}
+                {
+                    label: '{{ name }}',
+                    data: [{% for hp in hp_series[loop.index0] %}{{ hp }}{% if not loop.last %},{% endif %}{% endfor %}],
+                    borderColor: palette[{{ loop.index0 }} % palette.length],
+                    backgroundColor: palette[{{ loop.index0 }} % palette.length] + '22',
+                    fill: false,
+                    tension: 0,
+                    pointRadius: 2,
+                    pointHoverRadius: 4,
+                },
+                {% endfor %}
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 10, padding: 8, font: { size: 10 } } },
+                tooltip: { callbacks: { title: function(items) { return 'Step ' + items[0].label; } } },
+            },
+            scales: {
+                x: { title: { display: false }, min: 0, ticks: { maxTicksLimit: 8 } },
+                y: { title: { display: false }, min: 0, ticks: { stepSize: 1, maxTicksLimit: 5 } },
+            }
+        }
+    });
+
+    // ── Missile Flow ───────────────────────────────────────────
+    new Chart(document.getElementById('chart-missile'), {
+        type: 'bar',
+        data: {
+            labels: [{% for s in mf_step %}{{ s }}{% if not loop.last %},{% endif %}{% endfor %}],
+            datasets: [
+                {
+                    label: 'Incoming',
+                    data: [{% for v in mf_incoming %}{{ v }}{% if not loop.last %},{% endif %}{% endfor %}],
+                    backgroundColor: '#d93025',
+                    borderRadius: 2,
+                    barThickness: 16,
+                },
+                {
+                    label: 'Intercepted',
+                    data: [{% for v in mf_intercepted %}{{ v }}{% if not loop.last %},{% endif %}{% endfor %}],
+                    backgroundColor: '#1a73e8',
+                    borderRadius: 2,
+                    barThickness: 16,
+                },
+                {
+                    label: 'Survived',
+                    data: [{% for v in mf_survived %}{{ v }}{% if not loop.last %},{% endif %}{% endfor %}],
+                    backgroundColor: '#e37400',
+                    borderRadius: 2,
+                    barThickness: 16,
+                },
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 10, padding: 8, font: { size: 10 } } },
+                tooltip: { callbacks: { title: function(items) { return 'Step ' + items[0].label; } } },
+            },
+            scales: {
+                x: { title: { display: false }, ticks: { maxTicksLimit: 8 } },
+                y: { beginAtZero: true, title: { display: false } },
+            }
+        }
+    });
+
+    // ── Interceptors ───────────────────────────────────────────
+    new Chart(document.getElementById('chart-interceptors'), {
+        type: 'bar',
+        data: {
+            labels: [{% for s in int_step %}{{ s }}{% if not loop.last %},{% endif %}{% endfor %}],
+            datasets: [{
+                label: 'Fired',
+                data: [{% for v in int_fired %}{{ v }}{% if not loop.last %},{% endif %}{% endfor %}],
+                backgroundColor: '#1a73e8',
+                borderRadius: 2,
+                barThickness: 16,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 10, padding: 8, font: { size: 10 } } },
+                tooltip: { callbacks: { title: function(items) { return 'Step ' + items[0].label; } } },
+            },
+            scales: {
+                x: { title: { display: false }, ticks: { maxTicksLimit: 8 } },
+                y: { beginAtZero: true, title: { display: false } },
+            }
+        }
+    });
+})();
+</script>
+{% endif %}
+
+{# ── Defender status table ──────────────────────────────────── #}
+<section>
+    <h2 style="color: #1a73e8;">🛡 Defender Status</h2>
+    <figure>
+        <table>
+            <thead>
+                <tr>
+                    <th>Platform</th>
+                    <th>HP</th>
+                    <th>Ammo</th>
+                    <th>Eng. Capacity</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in defenders %}
+                {% set hp_pct = d.staying_power * 100 / (d.staying_power + d.hits_taken) %}
+                {% if hp_pct > 100 %}{% set hp_pct = 100 %}{% endif %}
+                <tr>
+                    <td><strong>{{ d.name }}</strong></td>
+                    <td>
+                        <div class="hp-bar">
+                            <span>{{ d.staying_power }}</span>
+                        </div>
+                    </td>
+                    <td>{{ d.magazine_depth }}</td>
+                    <td>{{ d.max_engagement_capacity }}</td>
+                    <td>
+                        {% if d.staying_power == 0 %}
+                        <span class="status-destroyed">DESTROYED</span>
+                        {% elif d.staying_power < 2 %}
+                        <span class="status-critical">Critical</span>
+                        {% elif d.hits_taken > 0 %}
+                        <span class="status-damaged">Damaged</span>
+                        {% else %}
+                        <span class="status-ok">Active</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </figure>
+</section>
+
+{# ── Step event log ─────────────────────────────────────────── #}
+{% if record %}
+<section>
+    <h2 style="color: #555;">📋 Step {{ record.step + 1 }} Events</h2>
+
+    {# Launches #}
+    {% if record.threat_launches %}
+    <h3 style="color: #d93025;">⚔ Incoming</h3>
+    {% for tl in record.threat_launches %}
+    <div class="event-attacker">
+        <strong>{{ tl.attacker_name }}</strong> fires
+        <strong>{{ tl.missiles_fired }}</strong> missile{{ tl.missiles_fired | pluralize }}
+        at <em>{{ tl.target_name }}</em>
+        <br><small>PKO: {{ tl.pko_label }}</small>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    {# Interceptions #}
+    {% if record.interceptions %}
+    <h3 style="color: #1a73e8;">🛡 Interception</h3>
+    {% for ie in record.interceptions %}
+    <div class="event-defender">
+        <strong>{{ ie.defender_name }}</strong> ({{ ie.doctrine_label }})
+        fired <strong>{{ ie.interceptors_fired }}</strong> interceptor{{ ie.interceptors_fired | pluralize }}
+        (capacity: {{ ie.max_engagement_capacity }})
+    </div>
+    {% endfor %}
+
+    {% set total_fired = 0 %}
+    {% for ie in record.interceptions %}
+        {% set total_fired = total_fired + ie.interceptors_fired %}
+    {% endfor %}
+    {% set total_incoming = 0 %}
+    {% for tl in record.threat_launches %}
+        {% set total_incoming = total_incoming + tl.missiles_fired %}
+    {% endfor %}
+    <p style="margin-top: 0.5rem; color: #555;">
+        <small>Total incoming: {{ total_incoming }} | Total interceptors fired: {{ total_fired }}</small>
+    </p>
+    {% endif %}
+
+    {# Impacts #}
+    {% if record.impacts %}
+    <h3 style="color: #e37400;">💥 Terminal Impact</h3>
+    {% for im in record.impacts %}
+    <div class="event-impact">
+        <strong>{{ im.missiles_leaked }}</strong> missile{{ im.missiles_leaked | pluralize }} reached
+        <em>{{ im.target_name }}</em>
+        → <strong>{{ im.hits_scored }}</strong> hit{{ im.hits_scored | pluralize }}
+        (HP: {{ im.hp_before }} → {{ im.hp_after }})
+        {% if im.destroyed %}
+        <span class="status-destroyed">DESTROYED</span>
+        {% endif %}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    {% if not record.threat_launches and not record.interceptions and not record.impacts %}
+    <p style="color: #888;">No activity this step.</p>
+    {% endif %}
+</section>
+{% endif %}
+
+{# ── Action buttons ─────────────────────────────────────────── #}
+<section class="step-nav">
+    {% if not is_finished %}
+    <form method="post" action="/interactive/{{ session_id }}/advance">
+        <button type="submit">Next Step ⤵</button>
+    </form>
+    {% endif %}
+
+    <form method="post" action="/interactive/{{ session_id }}/finish"
+          style="display: inline;">
+        <button type="submit" class="outline">
+            {% if is_finished %}Rerun All{% else %}Finish All Steps{% endif %}
+        </button>
+    </form>
+
+    <form method="post" action="/interactive/{{ session_id }}/reset"
+          style="display: inline;">
+        <button type="submit" class="secondary outline small">Reset</button>
+    </form>
+
+    {% if is_finished %}
+    <p style="margin-top: 1rem;"><em>Simulation complete. 
+        <a href="/">Return to dashboard</a> to run Monte Carlo results.</em></p>
+    {% endif %}
+</section>
+
+{% endblock %}

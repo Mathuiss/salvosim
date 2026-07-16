@@ -11,7 +11,6 @@
             <tr>
                 <th>Name</th>
                 <th>Description</th>
-                <th>Mode</th>
                 <th>Iterations</th>
                 <th>Actions</th>
             </tr>
@@ -21,17 +20,17 @@
             <tr>
                 <td><a href="/scenarios/{{ s.name }}/edit">{{ s.display_name }}</a></td>
                 <td>{{ s.description }}</td>
-                <td>{{ s.execution_mode }}</td>
                 <td>{{ s.iterations | default(value="—") }}</td>
                 <td style="white-space: nowrap;">
                     <a href="/scenarios/{{ s.name }}/edit" role="button" class="small">Edit</a>
-                    <button hx-post="/simulate/{{ s.name }}"
+                    <button hx-post="/interactive/{{ s.name }}/start"
                             hx-target="body"
                             hx-swap="outerHTML"
                             hx-disabled-elt="this"
                             class="small">
-                        Run
+                        Walk
                     </button>
+                    <a href="/run/{{ s.name }}" role="button" class="small">Run</a>
                     <button hx-delete="/scenarios/{{ s.name }}"
                             hx-target="body"
                             hx-swap="outerHTML"

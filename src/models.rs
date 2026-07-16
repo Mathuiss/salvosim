@@ -12,13 +12,23 @@ use serde::{Deserialize, Serialize};
 ///   then proceed to the next threat or defender.
 /// - `MaxDefense`: Commit all available engagement capacity against a single
 ///   threat simultaneously before the next defender acts.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum Doctrine {
     #[serde(rename = "shoot-look-shoot")]
     ShootLookShoot,
 
     #[serde(rename = "max_defense")]
     MaxDefense,
+}
+
+impl Doctrine {
+    /// Human-readable label for display in the UI.
+    pub fn label(&self) -> &'static str {
+        match self {
+            Doctrine::ShootLookShoot => "Shoot-Look-Shoot",
+            Doctrine::MaxDefense => "Max Defense",
+        }
+    }
 }
 
 // ============================================================
@@ -38,7 +48,6 @@ pub struct ScenarioConfig {
 pub struct ScenarioMeta {
     pub name: String,
     pub description: Option<String>,
-    pub execution_mode: String,
     pub iterations: Option<u32>,
 }
 
@@ -109,7 +118,7 @@ impl Probability {
 // RUNTIME STATE  (mutable per-iteration)
 // ============================================================
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct RunDefender {
     pub name: String,
     pub staying_power: u32,
@@ -136,7 +145,7 @@ impl From<&Defender> for RunDefender {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct IncomingThreat {
     pub target_name: String,
     pub pko: f64,
@@ -185,4 +194,49 @@ pub struct AttackerResult {
     pub target_name: String,
     pub total_missiles: u32,
     pub pko_label: String,
+}
+
+// ============================================================
+// STEP-THROUGH / INTERACTIVE EVENT TYPES
+// ============================================================
+
+/// One attacker's salvo during a single time step.
+#[derive(Debug, Clone, Serialize)]
+pub struct ThreatLaunch {
+    pub attacker_name: String,
+    pub target_name: String,
+    pub missiles_fired: u32,
+    pub pko_label: String,
+}
+
+/// Interception activity by a single defender during one step.
+#[derive(Debug, Clone, Serialize)]
+pub struct InterceptionEvent {
+    pub defender_name: String,
+    pub doctrine_label: String,
+    pub interceptors_fired: u32,
+    pub max_engagement_capacity: u32,
+}
+
+/// Damage impact from surviving threats against a single target.
+#[derive(Debug, Clone, Serialize)]
+pub struct ImpactEvent {
+    pub target_name: String,
+    pub missiles_leaked: u32,
+    pub hits_scored: u32,
+    pub hp_before: u32,
+    pub hp_after: u32,
+    pub destroyed: bool,
+}
+
+/// A full snapshot of one time step in an interactive simulation.
+#[derive(Debug, Clone, Serialize)]
+pub struct StepRecord {
+    pub step: usize,
+    pub max_steps: usize,
+    pub is_complete: bool,
+    pub threat_launches: Vec<ThreatLaunch>,
+    pub interceptions: Vec<InterceptionEvent>,
+    pub impacts: Vec<ImpactEvent>,
+    pub defender_snapshots: Vec<RunDefender>,
 }

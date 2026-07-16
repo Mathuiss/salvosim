@@ -48,15 +48,8 @@ fn main() -> Result<(), SalvoSimError> {
         let file = matches.get_one::<String>("file").unwrap();
         let config = config::load_scenario(file)?;
 
-        match config.scenario.execution_mode.to_lowercase().as_str() {
-            "monte_carlo" => {
-                let result = engine::run_monte_carlo(&config);
-                engine::print_result(&result);
-            }
-            _ => {
-                println!("Step-through mode not yet implemented.");
-            }
-        }
+        let result = engine::run_monte_carlo(&config);
+        engine::print_result(&result);
 
         Ok(())
     }

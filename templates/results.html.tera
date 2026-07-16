@@ -39,6 +39,111 @@
     </ul>
 </nav>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+
+{# ── CHARTS ───────────────────────────────────────────────────── #}
+{% if result.defenders %}
+<section>
+    <h2>Charts</h2>
+    <div class="grid" style="grid-template-columns: 1fr 1fr; gap: 2rem;">
+        <article>
+            <h3 style="color: #1a73e8;">🛡 Survival Rate</h3>
+            <canvas id="chart-survival" height="180"></canvas>
+        </article>
+        <article>
+            <h3 style="color: #555;">📊 Engagements per Defender</h3>
+            <canvas id="chart-engagement" height="180"></canvas>
+        </article>
+    </div>
+</section>
+
+<script>
+(function() {
+    // ── Survival Rate ──────────────────────────────────────────
+    new Chart(document.getElementById('chart-survival'), {
+        type: 'bar',
+        data: {
+            labels: [{% for d in result.defenders %}"{{ d.name }}",{% endfor %}],
+            datasets: [{
+                label: 'Survival Rate (%)',
+                data: [{% for d in result.defenders %}{{ d.survival_rate | round(precision=1) }},{% endfor %}],
+                backgroundColor: [{% for d in result.defenders %}
+                    {% if d.survival_rate >= 99.95 %}'#34a853'
+                    {% elif d.survival_rate >= 50 %}'#1a73e8'
+                    {% elif d.survival_rate >= 25 %}'#e37400'
+                    {% else %}'#d93025'
+                    {% endif %},
+                {% endfor %}],
+                borderColor: '#ffffff22',
+                borderWidth: 1,
+                borderRadius: 4,
+                maxBarThickness: 40,
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+            },
+            scales: {
+                x: {
+                    min: 0,
+                    max: 100,
+                    grid: { color: '#00000015' },
+                },
+                y: {
+                    grid: { display: false },
+                }
+            }
+        }
+    });
+
+    // ── Hits vs Interceptors ───────────────────────────────────
+    new Chart(document.getElementById('chart-engagement'), {
+        type: 'bar',
+        data: {
+            labels: [{% for d in result.defenders %}"{{ d.name }}",{% endfor %}],
+            datasets: [
+                {
+                    label: 'Avg Hits Taken',
+                    data: [{% for d in result.defenders %}{{ d.avg_hits_taken | round(precision=2) }},{% endfor %}],
+                    backgroundColor: '#e37400',
+                    borderRadius: 4,
+                    maxBarThickness: 30,
+                },
+                {
+                    label: 'Avg Interceptors Fired',
+                    data: [{% for d in result.defenders %}{{ d.avg_interceptors_fired | round(precision=2) }},{% endfor %}],
+                    backgroundColor: '#1a73e8',
+                    borderRadius: 4,
+                    maxBarThickness: 30,
+                },
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { boxWidth: 12, padding: 12 },
+                },
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: '#00000015' },
+                }
+            }
+        }
+    });
+})();
+</script>
+{% endif %}
+
 {# ── ATTACKERS (red) ──────────────────────────────────────────── #}
 <section>
     <h2 style="color: #d93025;">
@@ -111,34 +216,4 @@
     {% endif %}
 </section>
 
-{# ── DETAILS ─────────────────────────────────────────────────── #}
-{% if result.defenders %}
-<section>
-    <h3>Per-Defender Summary</h3>
-    <figure>
-        <table>
-            <thead>
-                <tr>
-                    <th>Platform</th>
-                    <th>Survival Rate</th>
-                    <th>Runs Survived</th>
-                    <th>Avg Hits Taken</th>
-                    <th>Avg Interceptors Fired</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for d in result.defenders %}
-                <tr class="side-defenders">
-                    <td><strong>{{ d.name }}</strong></td>
-                    <td>{{ d.survival_rate | round(precision=1) }}%</td>
-                    <td>{{ d.survival_count }} / {{ result.iterations }}</td>
-                    <td>{{ d.avg_hits_taken | round(precision=2) }} (of {{ d.staying_power }})</td>
-                    <td>{{ d.avg_interceptors_fired | round(precision=2) }} (of {{ d.magazine_depth }})</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </figure>
-</section>
-{% endif %}
 {% endblock %}

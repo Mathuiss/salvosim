@@ -1,7 +1,6 @@
 [scenario]
 name = "Operation Distant Thunder - Multi-Axis Strike"
 description = "10,000 iteration Monte Carlo testing a coordinated multi-domain strike."
-execution_mode = "monte_carlo"
 iterations = 10000
 
 [[defenders]]
