@@ -10,12 +10,19 @@ use serde::{Deserialize, Serialize};
 ///
 /// - `ShootLookShoot`: Fire one interceptor per threat, assess the result,
 ///   then proceed to the next threat or defender.
+/// - `ShootShootLook`: Fire **two** interceptors per threat, then assess.
+///   A second interceptor is only fired if the first missed and capacity
+///   remains.  Uses more magazine depth than Shoot-Look-Shoot but gives
+///   a higher per-threat kill probability.
 /// - `MaxDefense`: Commit all available engagement capacity against a single
 ///   threat simultaneously before the next defender acts.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum Doctrine {
     #[serde(rename = "shoot-look-shoot")]
     ShootLookShoot,
+
+    #[serde(rename = "shoot-shoot-look")]
+    ShootShootLook,
 
     #[serde(rename = "max_defense")]
     MaxDefense,
@@ -26,6 +33,7 @@ impl Doctrine {
     pub fn label(&self) -> &'static str {
         match self {
             Doctrine::ShootLookShoot => "Shoot-Look-Shoot",
+            Doctrine::ShootShootLook => "Shoot-Shoot-Look",
             Doctrine::MaxDefense => "Max Defense",
         }
     }

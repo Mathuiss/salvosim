@@ -109,6 +109,10 @@ fn sort_by_pkd(defenders: &mut [RunDefender]) {
 ///
 /// - **ShootLookShoot** — fire one interceptor, check the PkD roll. If it
 ///   hits, the threat is intercepted and the next threat is considered.
+/// - **ShootShootLook** — salvo-launch up to two interceptors per threat.
+///   Both are committed before the outcome of the first is known (simulates
+///   a simultaneous salvo engagement).  If any interceptor hits, the threat
+///   is intercepted.
 /// - **MaxDefense** — fire *all* remaining engagement capacity at once.
 ///   If *any* roll hits, the threat is intercepted.
 fn interception_phase(
@@ -143,6 +147,27 @@ fn interception_phase(
                         intercepts[i] += 1;
                         intercepted = true;
                         break;
+                    }
+                }
+                Doctrine::ShootShootLook => {
+                    // Salvo-launch up to two interceptors simultaneously.
+                    // Both are committed regardless of the first hit; the
+                    // defender commits before knowing the outcome.
+                    let shots = defender
+                        .magazine_depth
+                        .min(2)
+                        .min(defender.max_engagement_capacity - engagements_this_step[i])
+                        as u32;
+                    defender.magazine_depth -= shots;
+                    engagements_this_step[i] += shots;
+
+                    // If any interceptor hits, the threat is intercepted.
+                    for _ in 0..shots {
+                        if rng.random::<f64>() <= defender.pkd {
+                            intercepts[i] += 1;
+                            intercepted = true;
+                            break;
+                        }
                     }
                 }
                 Doctrine::MaxDefense => {
