@@ -12,7 +12,12 @@
     <header class="container">
         <nav>
             <ul>
-                <li><strong><a href="/" style="--pico-text-decoration: none;">SalvoSim</a></strong></li>
+                <li>
+                    <a href="/" style="display: flex; align-items: center; gap: 0.5rem; --pico-text-decoration: none;">
+                        <img src="/static/logo.png" alt="SalvoSim" height="28" width="28" style="display: block;">
+                        <strong>SalvoSim</strong>
+                    </a>
+                </li>
             </ul>
             <ul>
                 <li><a href="/">Dashboard</a></li>

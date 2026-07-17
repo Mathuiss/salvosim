@@ -8,6 +8,7 @@ use std::sync::RwLock;
 
 use rand::RngExt;
 use rocket::config::Config;
+use rocket::fs::FileServer;
 
 use crate::engine::StepwiseSimulation;
 use crate::models::{RunDefender, SimulationResult, StepRecord};
@@ -72,6 +73,23 @@ pub async fn serve(addr: &str) -> Result<(), rocket::Error> {
         Err(e) => eprintln!("[salvosim] Cannot read scenarios/: {e}"),
     }
 
+    // Ensure the static directory exists and has the logo.
+    let static_dir = PathBuf::from("static");
+    if !static_dir.exists() {
+        std::fs::create_dir_all(&static_dir).expect("failed to create static/ directory");
+    }
+    let logo_src = PathBuf::from("templates/logo.png");
+    let logo_dst = static_dir.join("logo.png");
+    if logo_src.exists() && !logo_dst.exists() {
+        match std::fs::copy(&logo_src, &logo_dst) {
+            Ok(_) => eprintln!(
+                "[salvosim] Copied logo to {}/logo.png",
+                static_dir.display()
+            ),
+            Err(e) => eprintln!("[salvosim] Could not copy logo: {e}"),
+        }
+    }
+
     let rocket = rocket::custom(config)
         .manage(AppState {
             results: RwLock::new(HashMap::new()),
@@ -79,6 +97,7 @@ pub async fn serve(addr: &str) -> Result<(), rocket::Error> {
             session_scenario: RwLock::new(HashMap::new()),
             scenarios_dir,
         })
+        .mount("/static", FileServer::from("static"))
         .mount("/", handlers::routes())
         .attach(rocket_dyn_templates::Template::fairing());
 
