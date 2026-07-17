@@ -1,7 +1,7 @@
 # Salvosim — Universal Salvo Simulator
 
-Simulate missile-defence engagements using Hughe's salvo model.  Salvosim
-models a battle in discrete time-steps: each step, attackers launch a salvo
+Simulate missile-defence engagements using [Hughe's salvo model](https://en.wikipedia.org/wiki/Salvo_combat_model).
+Salvosim models a battle in discrete time-steps: each step, attackers launch a salvo
 of missiles toward defender platforms; defenders detect, track, and fire
 interceptors; surviving missiles arrive on target and roll for damage.
 Results are aggregated over thousands of Monte Carlo iterations to give
@@ -90,11 +90,11 @@ PkD and PKO can be specified in three ways:
 
 ### Doctrines
 
-| Doctrine             | Behaviour                                                                                                                                                                                                                          |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `"shoot-look-shoot"`  | The defender fires **one** interceptor at a threat, checks PkD, and only fires a second if the first missed.  This conserves magazine depth but may leave threats unengaged when capacity is exhausted.                              |
-| `"shoot-shoot-look"`  | The defender salvo-launches **two** interceptors simultaneously per threat.  Both are committed before the outcome of the first is known (simulates a simultaneous salvo engagement).  If any interceptor hits, the threat is intercepted.  Gives a higher per-threat kill probability than Shoot-Look-Shoot at the cost of more magazine depth per engagement. |
-| `"max_defense"`       | The defender fires **all remaining engagement capacity** at the same threat simultaneously.  If any interceptor hits, the threat is intercepted.  This maximises the chance of a kill per threat but burns magazine depth quickly.   |
+| Doctrine             | Behaviour                                                                                                                                                                                                                                                                                                                                                       |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `"shoot-look-shoot"` | The defender fires **one** interceptor at a threat, checks PkD, and only fires a second if the first missed.  This conserves magazine depth but may leave threats unengaged when capacity is exhausted.                                                                                                                                                         |
+| `"shoot-shoot-look"` | The defender salvo-launches **two** interceptors simultaneously per threat.  Both are committed before the outcome of the first is known (simulates a simultaneous salvo engagement).  If any interceptor hits, the threat is intercepted.  Gives a higher per-threat kill probability than Shoot-Look-Shoot at the cost of more magazine depth per engagement. |
+| `"max_defense"`      | The defender fires **all remaining engagement capacity** at the same threat simultaneously.  If any interceptor hits, the threat is intercepted.  This maximises the chance of a kill per threat but burns magazine depth quickly.                                                                                                                              |
 
 ### Simulation loop (per iteration)
 
@@ -283,14 +283,14 @@ pko = { type = "normal_distribution", mean = 0.75, std_dev = 0.08 }
 
 ### `[[defenders]]`
 
-| Key                       | Type    | Required | Description                                           |
-| ------------------------- | ------- | -------- | ----------------------------------------------------- |
-| `name`                    | string  | yes      | Unique identifier; other fields reference this name   |
-| `staying_power`           | integer | yes      | Hit points before the defender is destroyed (≥ 1)     |
-| `magazine_depth`          | integer | yes      | Total interceptor inventory for the entire engagement |
-| `max_engagement_capacity` | integer | yes      | Maximum interceptors that can be fired per time-step  |
+| Key                       | Type    | Required | Description                                                    |
+| ------------------------- | ------- | -------- | -------------------------------------------------------------- |
+| `name`                    | string  | yes      | Unique identifier; other fields reference this name            |
+| `staying_power`           | integer | yes      | Hit points before the defender is destroyed (≥ 1)              |
+| `magazine_depth`          | integer | yes      | Total interceptor inventory for the entire engagement          |
+| `max_engagement_capacity` | integer | yes      | Maximum interceptors that can be fired per time-step           |
 | `doctrine`                | string  | yes      | `"shoot-look-shoot"`, `"shoot-shoot-look"`, or `"max_defense"` |
-| `pkd`                     | table   | yes      | PkD probability distribution (see below)              |
+| `pkd`                     | table   | yes      | PkD probability distribution (see below)                       |
 
 ### `[[attackers]]`
 
