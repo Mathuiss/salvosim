@@ -41,19 +41,9 @@ std_dev = 0.1
 [[attackers]]
 name = "Drone Swarm"
 target_name = "Factory"
-salvo_schedule = [24, 12, 6]
+salvo_schedule = [20, 10, 5]
 
 [attackers.pko]
 type = "normal_distribution"
 mean = 0.7
 std_dev = 0.25
-
-[[attackers]]
-name = "JASSM"
-target_name = "Factory"
-salvo_schedule = [0, 0, 8]
-
-[attackers.pko]
-type = "normal_distribution"
-mean = 0.9
-std_dev = 0.1

@@ -90,9 +90,9 @@
                 <div class="field-row">
                     <label>Doctrine
                         <select class="def-doctrine">
-                            <option value="shoot-look-shoot"{% if d.doctrine == "ShootLookShoot" %} selected{% endif %}>Shoot-Look-Shoot</option>
-                            <option value="shoot-shoot-look"{% if d.doctrine == "ShootShootLook" %} selected{% endif %}>Shoot-Shoot-Look</option>
-                            <option value="max_defense"{% if d.doctrine == "MaxDefense" %} selected{% endif %}>Max Defense</option>
+                            <option value="shoot-look-shoot"{% if d.doctrine == "shoot-look-shoot" %} selected{% endif %}>Shoot-Look-Shoot</option>
+                            <option value="shoot-shoot-look"{% if d.doctrine == "shoot-shoot-look" %} selected{% endif %}>Shoot-Shoot-Look</option>
+                            <option value="max_defense"{% if d.doctrine == "max_defense" %} selected{% endif %}>Max Defense</option>
                         </select>
                     </label>
                     <div style="flex: 2;">
