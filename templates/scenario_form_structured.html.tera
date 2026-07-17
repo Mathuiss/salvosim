@@ -1,0 +1,452 @@
+{% extends "base" %}
+{% block title %}SalvoSim — Edit: {{ name }}{% endblock %}
+
+{% block content %}
+<style>
+    .unit-card { border: 1px solid #ddd; border-radius: 6px; padding: 1rem; margin-bottom: 1rem; }
+    .unit-card label { display: block; margin-top: 0.5rem; font-size: 0.85rem; }
+    .unit-card input, .unit-card select { width: 100%; box-sizing: border-box; }
+    .unit-card .field-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .unit-card .field-row > * { flex: 1; min-width: 100px; }
+    .section-header { display: flex; justify-content: space-between; align-items: center; }
+    .inline-flex { display: inline-flex; gap: 0.3rem; align-items: center; }
+    .prob-fields { border-left: 3px solid #eee; padding-left: 0.5rem; margin-top: 0.3rem; }
+    .prob-row { display: none; }
+    .prob-row.active { display: block; }
+    .remove-btn { margin-top: 0.5rem; }
+    .target-wrapper { position: relative; display: flex; align-items: stretch; }
+    .target-wrapper input { flex: 1; min-width: 0; }
+    .target-btn {
+        padding: 0.1rem 0.5rem; cursor: pointer;
+        border: 1px solid var(--form-element-border-color, #ccc);
+        border-left: none; border-radius: 0 4px 4px 0;
+        background: var(--bg-color, #f5f5f5);
+        font-size: 0.7rem; line-height: 1;
+    }
+    .target-btn:hover { background: var(--primary-hover-bg, #ddd); }
+    .target-popup {
+        display: none;
+        position: absolute;
+        top: 100%; left: 0; right: 0;
+        max-height: 220px; overflow-y: auto;
+        background: var(--card-bg, #fff);
+        border: 1px solid var(--form-element-border-color, #999);
+        border-radius: 0 0 4px 4px;
+        z-index: 1000;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .target-popup.open { display: block; }
+    .target-popup-item {
+        padding: 0.4rem 0.6rem; cursor: pointer;
+        font-size: 0.9rem;
+    }
+    .target-popup-item:hover { background: var(--primary, #0066cc); color: #fff; }
+</style>
+
+<h1>Edit: {{ name }}</h1>
+
+<form id="scenario-form" method="post" action="/scenarios/{{ name }}">
+    <input type="hidden" name="config_json" id="config-json">
+
+    {# ── Scenario Metadata ──────────────────────────────────────── #}
+    <section>
+        <h2>Scenario</h2>
+        <div class="grid">
+            <label>Scenario Name
+                <input type="text" id="s-name" value="{{ scenario.name }}" required>
+            </label>
+            <label>Iterations
+                <input type="number" id="s-iterations" value="{{ scenario.iterations | default(value=1000) }}" min="1">
+            </label>
+        </div>
+        <label>Description
+            <textarea id="s-description" rows="2">{{ scenario.description | default(value="") }}</textarea>
+        </label>
+    </section>
+
+    {# ── Defenders ──────────────────────────────────────────────── #}
+    <section>
+        <div class="section-header">
+            <h2>Defenders</h2>
+            <button type="button" onclick="addDefender()" class="small outline">+ Add Defender</button>
+        </div>
+        <div id="defenders-list">
+            {% for d in config.defenders %}
+            <div class="unit-card defender-entry">
+                <div class="field-row">
+                    <label>Name
+                        <input type="text" class="def-name" value="{{ d.name }}" required>
+                    </label>
+                    <label>Staying Power
+                        <input type="number" class="def-hp" value="{{ d.staying_power }}" min="1">
+                    </label>
+                    <label>Magazine
+                        <input type="number" class="def-mag" value="{{ d.magazine_depth }}" min="0">
+                    </label>
+                    <label>Eng. Capacity
+                        <input type="number" class="def-cap" value="{{ d.max_engagement_capacity }}" min="0">
+                    </label>
+                </div>
+                <div class="field-row">
+                    <label>Doctrine
+                        <select class="def-doctrine">
+                            <option value="shoot-look-shoot"{% if d.doctrine == "ShootLookShoot" %} selected{% endif %}>Shoot-Look-Shoot</option>
+                            <option value="max_defense"{% if d.doctrine == "MaxDefense" %} selected{% endif %}>Max Defense</option>
+                        </select>
+                    </label>
+                    <div style="flex: 2;">
+                        <label>PkD <span style="font-size:0.8rem;color:#888;">(Probability of Kill per interceptor)</span></label>
+                        <div class="inline-flex">
+                            <select class="def-pkd-type" onchange="toggleProbType(this, 'def-pkd-')">
+                                <option value="fixed"{% if d.pkd.type == "fixed" %} selected{% endif %}>Fixed</option>
+                                <option value="uniform_range"{% if d.pkd.type == "uniform_range" %} selected{% endif %}>Uniform Range</option>
+                                <option value="normal_distribution"{% if d.pkd.type == "normal_distribution" %} selected{% endif %}>Normal Distribution</option>
+                            </select>
+                            <span class="prob-fields">
+                                <span class="prob-row def-pkd-fixed{% if d.pkd.type == "fixed" %} active{% endif %}">
+                                    <input type="number" class="def-pkd-val" value="{% if d.pkd.type == "fixed" %}{{ d.pkd.value }}{% endif %}" min="0" max="1" step="0.01" placeholder="0.70">
+                                </span>
+                                <span class="prob-row def-pkd-uniform_range{% if d.pkd.type == "uniform_range" %} active{% endif %}">
+                                    <input type="number" class="def-pkd-min" value="{% if d.pkd.type == "uniform_range" %}{{ d.pkd.min }}{% endif %}" min="0" max="1" step="0.01" placeholder="min" style="width:110px">
+                                    <input type="number" class="def-pkd-max" value="{% if d.pkd.type == "uniform_range" %}{{ d.pkd.max }}{% endif %}" min="0" max="1" step="0.01" placeholder="max" style="width:110px">
+                                </span>
+                                <span class="prob-row def-pkd-normal_distribution{% if d.pkd.type == "normal_distribution" %} active{% endif %}">
+                                    <input type="number" class="def-pkd-mean" value="{% if d.pkd.type == "normal_distribution" %}{{ d.pkd.mean }}{% endif %}" min="0" max="1" step="0.01" placeholder="mean" style="width:110px">
+                                    <input type="number" class="def-pkd-stddev" value="{% if d.pkd.type == "normal_distribution" %}{{ d.pkd.std_dev }}{% endif %}" min="0" step="0.01" placeholder="std dev" style="width:110px">
+                                </span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="small secondary outline remove-btn" onclick="this.closest('.unit-card').remove()">Remove</button>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    {# ── Attackers ──────────────────────────────────────────────── #}
+    <section>
+        <div class="section-header">
+            <h2>Attackers</h2>
+            <button type="button" onclick="addAttacker()" class="small outline">+ Add Attacker</button>
+        </div>
+        <div id="attackers-list">
+            {% for a in config.attackers %}
+            <div class="unit-card attacker-entry">
+                <div class="field-row">
+                    <label>Name
+                        <input type="text" class="atk-name" value="{{ a.name }}" required>
+                    </label>
+                    <label>Target (Defender Name)
+                        <div class="target-wrapper">
+                            <input type="text" class="atk-target" value="{{ a.target_name }}" list="defender-names" required>
+                            <button type="button" class="target-btn" tabindex="-1">▼</button>
+                            <div class="target-popup"></div>
+                        </div>
+                    </label>
+                </div>
+                <div class="field-row">
+                    <label>Salvo Schedule
+                        <input type="text" class="atk-schedule" value="{{ a.salvo_schedule | join(sep=",") }}" placeholder="e.g. 8,4,0,0">
+                    </label>
+                    <div style="flex: 2;">
+                        <label>PKO <span style="font-size:0.8rem;color:#888;">(Probability of Kill per missile)</span></label>
+                        <div class="inline-flex">
+                            <select class="atk-pko-type" onchange="toggleProbType(this, 'atk-pko-')">
+                                <option value="fixed"{% if a.pko.type == "fixed" %} selected{% endif %}>Fixed</option>
+                                <option value="uniform_range"{% if a.pko.type == "uniform_range" %} selected{% endif %}>Uniform Range</option>
+                                <option value="normal_distribution"{% if a.pko.type == "normal_distribution" %} selected{% endif %}>Normal Distribution</option>
+                            </select>
+                            <span class="prob-fields">
+                                <span class="prob-row atk-pko-fixed{% if a.pko.type == "fixed" %} active{% endif %}">
+                                    <input type="number" class="atk-pko-val" value="{% if a.pko.type == "fixed" %}{{ a.pko.value }}{% endif %}" min="0" max="1" step="0.01" placeholder="0.80">
+                                </span>
+                                <span class="prob-row atk-pko-uniform_range{% if a.pko.type == "uniform_range" %} active{% endif %}">
+                                    <input type="number" class="atk-pko-min" value="{% if a.pko.type == "uniform_range" %}{{ a.pko.min }}{% endif %}" min="0" max="1" step="0.01" placeholder="min" style="width:110px">
+                                    <input type="number" class="atk-pko-max" value="{% if a.pko.type == "uniform_range" %}{{ a.pko.max }}{% endif %}" min="0" max="1" step="0.01" placeholder="max" style="width:110px">
+                                </span>
+                                <span class="prob-row atk-pko-normal_distribution{% if a.pko.type == "normal_distribution" %} active{% endif %}">
+                                    <input type="number" class="atk-pko-mean" value="{% if a.pko.type == "normal_distribution" %}{{ a.pko.mean }}{% endif %}" min="0" max="1" step="0.01" placeholder="mean" style="width:110px">
+                                    <input type="number" class="atk-pko-stddev" value="{% if a.pko.type == "normal_distribution" %}{{ a.pko.std_dev }}{% endif %}" min="0" step="0.01" placeholder="std dev" style="width:110px">
+                                </span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="small secondary outline remove-btn" onclick="this.closest('.unit-card').remove()">Remove</button>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    {# ── Datalist — populated dynamically by JS ────────────────── #}
+    <datalist id="defender-names"></datalist>
+
+    <div class="grid" style="margin-top: 1rem;">
+        <button type="submit">Save</button>
+        <button type="button" class="secondary outline" onclick="window.location='/'">Cancel</button>
+    </div>
+</form>
+
+{# ── Templates for add/remove ────────────────────────────────── #}
+<template id="defender-template">
+    <div class="unit-card defender-entry">
+        <div class="field-row">
+            <label>Name
+                <input type="text" class="def-name" required>
+            </label>
+            <label>Staying Power
+                <input type="number" class="def-hp" value="3" min="1">
+            </label>
+            <label>Magazine
+                <input type="number" class="def-mag" value="16" min="0">
+            </label>
+            <label>Eng. Capacity
+                <input type="number" class="def-cap" value="8" min="0">
+            </label>
+        </div>
+        <div class="field-row">
+            <label>Doctrine
+                <select class="def-doctrine">
+                    <option value="shoot-look-shoot" selected>Shoot-Look-Shoot</option>
+                    <option value="max_defense">Max Defense</option>
+                </select>
+            </label>
+            <div style="flex: 2;">
+                <label>PkD</label>
+                <div class="inline-flex">
+                    <select class="def-pkd-type" onchange="toggleProbType(this, 'def-pkd-')">
+                        <option value="fixed" selected>Fixed</option>
+                        <option value="uniform_range">Uniform Range</option>
+                        <option value="normal_distribution">Normal Distribution</option>
+                    </select>
+                    <span class="prob-fields">
+                        <span class="prob-row def-pkd-fixed active">
+                            <input type="number" class="def-pkd-val" value="0.70" min="0" max="1" step="0.01" placeholder="0.70">
+                        </span>
+                        <span class="prob-row def-pkd-uniform_range">
+                            <input type="number" class="def-pkd-min" min="0" max="1" step="0.01" placeholder="min" style="width:110px">
+                            <input type="number" class="def-pkd-max" min="0" max="1" step="0.01" placeholder="max" style="width:110px">
+                        </span>
+                        <span class="prob-row def-pkd-normal_distribution">
+                            <input type="number" class="def-pkd-mean" min="0" max="1" step="0.01" placeholder="mean" style="width:110px">
+                            <input type="number" class="def-pkd-stddev" min="0" step="0.01" placeholder="std dev" style="width:110px">
+                        </span>
+                    </span>
+                </div>
+            </div>
+        </div>
+        <button type="button" class="small secondary outline remove-btn" onclick="this.closest('.unit-card').remove()">Remove</button>
+    </div>
+</template>
+
+<template id="attacker-template">
+    <div class="unit-card attacker-entry">
+        <div class="field-row">
+            <label>Name
+                <input type="text" class="atk-name" required>
+            </label>
+            <label>Target (Defender Name)
+                <div class="target-wrapper">
+                    <input type="text" class="atk-target" list="defender-names">
+                    <button type="button" class="target-btn" tabindex="-1">▼</button>
+                    <div class="target-popup"></div>
+                </div>
+            </label>
+        </div>
+        <div class="field-row">
+            <label>Salvo Schedule
+                <input type="text" class="atk-schedule" value="8,0,0,0" placeholder="e.g. 8,0,0,0">
+            </label>
+            <div style="flex: 2;">
+                <label>PKO</label>
+                <div class="inline-flex">
+                    <select class="atk-pko-type" onchange="toggleProbType(this, 'atk-pko-')">
+                        <option value="fixed" selected>Fixed</option>
+                        <option value="uniform_range">Uniform Range</option>
+                        <option value="normal_distribution">Normal Distribution</option>
+                    </select>
+                    <span class="prob-fields">
+                        <span class="prob-row atk-pko-fixed active">
+                            <input type="number" class="atk-pko-val" value="0.80" min="0" max="1" step="0.01" placeholder="0.80">
+                        </span>
+                        <span class="prob-row atk-pko-uniform_range">
+                            <input type="number" class="atk-pko-min" min="0" max="1" step="0.01" placeholder="min" style="width:110px">
+                            <input type="number" class="atk-pko-max" min="0" max="1" step="0.01" placeholder="max" style="width:110px">
+                        </span>
+                        <span class="prob-row atk-pko-normal_distribution">
+                            <input type="number" class="atk-pko-mean" min="0" max="1" step="0.01" placeholder="mean" style="width:110px">
+                            <input type="number" class="atk-pko-stddev" min="0" step="0.01" placeholder="std dev" style="width:110px">
+                        </span>
+                    </span>
+                </div>
+            </div>
+        </div>
+        <button type="button" class="small secondary outline remove-btn" onclick="this.closest('.unit-card').remove()">Remove</button>
+    </div>
+</template>
+
+<script>
+// ── Toggle probability type conditional fields ─────────────────
+function toggleProbType(select, prefix) {
+    const val = select.value;
+    document.querySelectorAll('[class*="' + prefix + '"]').forEach(el => {
+        for (const cls of el.classList) {
+            if (cls.startsWith(prefix) && cls !== prefix.slice(0,-1)) {
+                el.classList.toggle('active', cls === prefix + val);
+            }
+        }
+    });
+}
+
+// ── Add defenders/attackers ────────────────────────────────────
+function addDefender() {
+    const tmpl = document.getElementById('defender-template').content.cloneNode(true);
+    document.getElementById('defenders-list').appendChild(tmpl);
+}
+
+function addAttacker() {
+    const tmpl = document.getElementById('attacker-template').content.cloneNode(true);
+    document.getElementById('attackers-list').appendChild(tmpl);
+}
+
+// ── Keep defender datalist in sync ─────────────────────────────
+function refreshDefenderList() {
+    const datalist = document.getElementById('defender-names');
+    datalist.innerHTML = '';
+    document.querySelectorAll('#defenders-list .def-name').forEach(input => {
+        const name = input.value.trim();
+        if (name) {
+            const opt = document.createElement('option');
+            opt.value = name;
+            datalist.appendChild(opt);
+        }
+    });
+}
+
+// Observe #defenders-list for any DOM changes (add, remove, rename)
+const defendersObserver = new MutationObserver(refreshDefenderList);
+const defendersList = document.getElementById('defenders-list');
+defendersObserver.observe(defendersList, { childList: true, subtree: true, attributes: false, characterData: false });
+
+// Also refresh on any keyup in defender name inputs (delegated)
+defendersList.addEventListener('input', function(e) {
+    if (e.target.classList.contains('def-name')) {
+        refreshDefenderList();
+    }
+});
+
+// Initial population on page load
+refreshDefenderList();
+
+// ── Target dropdown — show defender names on ▼ click ──────────
+document.getElementById('attackers-list').addEventListener('click', function(e) {
+    const btn = e.target.closest('.target-btn');
+    if (!btn) {
+        // Close any open popup when clicking outside
+        const openPopup = document.querySelector('.target-popup.open');
+        if (openPopup && !e.target.closest('.target-popup')) {
+            openPopup.classList.remove('open');
+        }
+        return;
+    }
+    e.preventDefault();
+    const wrapper = btn.closest('.target-wrapper');
+    const input = wrapper.querySelector('.atk-target');
+    const popup = wrapper.querySelector('.target-popup');
+
+    if (popup.classList.contains('open')) {
+        popup.classList.remove('open');
+        return;
+    }
+
+    // Close any other open popups first
+    document.querySelectorAll('.target-popup.open').forEach(p => p.classList.remove('open'));
+
+    // Populate from current defender names (use the datalist directly)
+    popup.innerHTML = '';
+    document.querySelectorAll('#defender-names option').forEach(opt => {
+        const name = opt.value;
+        if (!name) return;
+        const item = document.createElement('div');
+        item.className = 'target-popup-item';
+        item.textContent = name;
+        item.addEventListener('click', function(ev) {
+            ev.stopPropagation();
+            input.value = this.textContent;
+            popup.classList.remove('open');
+            // Trigger input so the form builder captures it
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+        popup.appendChild(item);
+    });
+
+    popup.classList.add('open');
+});
+
+// Close target popup when clicking anywhere outside the wrapper
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.target-wrapper')) {
+        document.querySelectorAll('.target-popup.open').forEach(p => p.classList.remove('open'));
+    }
+});
+
+// ── Build JSON and populate hidden field on submit ─────────────
+document.getElementById('scenario-form').addEventListener('submit', function(e) {
+    const config = {
+        scenario: {
+            name: document.getElementById('s-name').value.trim(),
+            description: document.getElementById('s-description').value.trim() || null,
+            iterations: parseInt(document.getElementById('s-iterations').value) || 1000,
+        },
+        defenders: [],
+        attackers: [],
+    };
+
+    document.querySelectorAll('#defenders-list .defender-entry').forEach(el => {
+        const pkdType = el.querySelector('.def-pkd-type').value;
+        let pkd = {};
+        if (pkdType === 'fixed') {
+            pkd = { type: 'fixed', value: parseFloat(el.querySelector('.def-pkd-val').value) || 0 };
+        } else if (pkdType === 'uniform_range') {
+            pkd = { type: 'uniform_range', min: parseFloat(el.querySelector('.def-pkd-min').value) || 0,
+                    max: parseFloat(el.querySelector('.def-pkd-max').value) || 0 };
+        } else {
+            pkd = { type: 'normal_distribution', mean: parseFloat(el.querySelector('.def-pkd-mean').value) || 0,
+                    std_dev: parseFloat(el.querySelector('.def-pkd-stddev').value) || 0 };
+        }
+        config.defenders.push({
+            name: el.querySelector('.def-name').value.trim(),
+            staying_power: parseInt(el.querySelector('.def-hp').value) || 1,
+            magazine_depth: parseInt(el.querySelector('.def-mag').value) || 0,
+            max_engagement_capacity: parseInt(el.querySelector('.def-cap').value) || 0,
+            doctrine: el.querySelector('.def-doctrine').value,
+            pkd: pkd,
+        });
+    });
+
+    document.querySelectorAll('#attackers-list .attacker-entry').forEach(el => {
+        const pkoType = el.querySelector('.atk-pko-type').value;
+        let pko = {};
+        if (pkoType === 'fixed') {
+            pko = { type: 'fixed', value: parseFloat(el.querySelector('.atk-pko-val').value) || 0 };
+        } else if (pkoType === 'uniform_range') {
+            pko = { type: 'uniform_range', min: parseFloat(el.querySelector('.atk-pko-min').value) || 0,
+                    max: parseFloat(el.querySelector('.atk-pko-max').value) || 0 };
+        } else {
+            pko = { type: 'normal_distribution', mean: parseFloat(el.querySelector('.atk-pko-mean').value) || 0,
+                    std_dev: parseFloat(el.querySelector('.atk-pko-stddev').value) || 0 };
+        }
+        const scheduleStr = el.querySelector('.atk-schedule').value.trim();
+        config.attackers.push({
+            name: el.querySelector('.atk-name').value.trim(),
+            target_name: el.querySelector('.atk-target').value.trim(),
+            salvo_schedule: scheduleStr ? scheduleStr.split(',').map(s => parseInt(s.trim()) || 0) : [0],
+            pko: pko,
+        });
+    });
+
+    document.getElementById('config-json').value = JSON.stringify(config);
+});
+</script>
+{% endblock %}

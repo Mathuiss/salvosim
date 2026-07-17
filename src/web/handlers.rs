@@ -15,18 +15,13 @@ use super::{AppState, InteractiveSession, generate_session_id};
 // ── Form types ───────────────────────────────────────────────────
 
 #[derive(FromForm)]
-pub struct ScenarioForm {
-    pub filename: String,
-    pub content: String,
-}
-
-fn strip_toml_ext(name: &str) -> String {
-    name.strip_suffix(".toml").unwrap_or(name).to_string()
+pub struct SimulateForm {
+    pub iterations: u32,
 }
 
 #[derive(FromForm)]
-pub struct SimulateForm {
-    pub iterations: u32,
+pub struct ScenarioFormJson {
+    pub config_json: String,
 }
 
 // ── Dashboard ────────────────────────────────────────────────────
@@ -41,32 +36,37 @@ pub fn index(state: &State<AppState>) -> Template {
 
 #[get("/scenarios/new")]
 pub fn new_scenario_form() -> Template {
-    let template = r#"[scenario]
-name = "My Scenario"
-description = ""
-iterations = 1000
-
-[[defenders]]
-name = "Defender"
-staying_power = 4
-magazine_depth = 48
-max_engagement_capacity = 12
-doctrine = "shoot-look-shoot"
-pkd = { type = "fixed", value = 0.70 }
-
-[[attackers]]
-name = "Attacker"
-target_name = "Defender"
-missile_inventory = 24
-salvo_schedule = [24, 0]
-pko = { type = "fixed", value = 0.80 }
-"#;
+    use crate::models::Probability;
+    let config = crate::models::ScenarioConfig {
+        scenario: crate::models::ScenarioMeta {
+            name: "My Scenario".into(),
+            description: Some("".into()),
+            iterations: Some(1000),
+        },
+        defenders: vec![crate::models::Defender {
+            name: "Defender".into(),
+            staying_power: 4,
+            magazine_depth: 48,
+            max_engagement_capacity: 12,
+            doctrine: crate::models::Doctrine::ShootLookShoot,
+            pkd: Probability::Fixed { value: 0.70 },
+        }],
+        attackers: vec![crate::models::Attacker {
+            name: "Attacker".into(),
+            target_name: "Defender".into(),
+            salvo_schedule: vec![24, 0],
+            pko: Probability::Fixed { value: 0.80 },
+        }],
+    };
+    let scenario = config.scenario.clone();
+    let name = "";
     Template::render(
-        "scenario_form",
+        "scenario_form_structured",
         context! {
             is_new: true,
-            name: "",
-            content: template,
+            name,
+            config,
+            scenario,
         },
     )
 }
@@ -77,12 +77,17 @@ pko = { type = "fixed", value = 0.80 }
 pub fn edit_scenario_form(name: &str, state: &State<AppState>) -> Result<Template, Status> {
     let content =
         scenario::read_scenario_raw(&state.scenarios_dir, name).map_err(|_| Status::NotFound)?;
+    let config: crate::models::ScenarioConfig =
+        toml::from_str(&content).map_err(|_| Status::BadRequest)?;
+    let scenario = config.scenario.clone();
     Ok(Template::render(
-        "scenario_form",
+        "scenario_form_structured",
         context! {
             is_new: false,
             name,
             content,
+            config,
+            scenario,
         },
     ))
 }
@@ -91,11 +96,14 @@ pub fn edit_scenario_form(name: &str, state: &State<AppState>) -> Result<Templat
 
 #[post("/scenarios", data = "<form>")]
 pub fn save_scenario(
-    form: Form<ScenarioForm>,
+    form: Form<ScenarioFormJson>,
     state: &State<AppState>,
 ) -> Result<Redirect, Status> {
-    let name = strip_toml_ext(&form.filename);
-    scenario::save_scenario(&state.scenarios_dir, &name, &form.content)
+    let config: crate::models::ScenarioConfig =
+        serde_json::from_str(&form.config_json).map_err(|_| Status::BadRequest)?;
+    let name = slugify(&config.scenario.name);
+    let toml_str = toml::to_string(&config).map_err(|_| Status::BadRequest)?;
+    scenario::save_scenario(&state.scenarios_dir, &name, &toml_str)
         .map_err(|_| Status::BadRequest)?;
     Ok(Redirect::to(uri!("/")))
 }
@@ -105,20 +113,29 @@ pub fn save_scenario(
 #[post("/scenarios/<name>", data = "<form>")]
 pub fn update_scenario(
     name: &str,
-    form: Form<ScenarioForm>,
+    form: Form<ScenarioFormJson>,
     state: &State<AppState>,
 ) -> Result<Redirect, Status> {
-    // The `<name>` in the path is the canonical name; use filename from form for rename.
-    let new_name = strip_toml_ext(&form.filename);
+    let config: crate::models::ScenarioConfig =
+        serde_json::from_str(&form.config_json).map_err(|_| Status::BadRequest)?;
+    let new_name = slugify(&config.scenario.name);
 
     // If the target name changed, delete the old file first.
     if new_name != name {
         scenario::delete_scenario(&state.scenarios_dir, name).ok();
     }
 
-    scenario::save_scenario(&state.scenarios_dir, &new_name, &form.content)
+    let toml_str = toml::to_string(&config).map_err(|_| Status::BadRequest)?;
+    scenario::save_scenario(&state.scenarios_dir, &new_name, &toml_str)
         .map_err(|_| Status::BadRequest)?;
     Ok(Redirect::to(uri!("/")))
+}
+
+fn slugify(s: &str) -> String {
+    s.to_lowercase()
+        .replace(|c: char| !c.is_alphanumeric() && c != '-', "-")
+        .trim_matches('-')
+        .to_string()
 }
 
 // ── Delete scenario ──────────────────────────────────────────────

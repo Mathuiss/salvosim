@@ -35,7 +35,7 @@ impl Doctrine {
 // CONFIGURATION MODELS  (deserialized from TOML)
 // ============================================================
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ScenarioConfig {
     pub scenario: ScenarioMeta,
     #[serde(default)]
@@ -44,7 +44,7 @@ pub struct ScenarioConfig {
     pub attackers: Vec<Attacker>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ScenarioMeta {
     pub name: String,
     /// This field is read by TOML deserialization and Tera templates only.
@@ -53,7 +53,7 @@ pub struct ScenarioMeta {
     pub iterations: Option<u32>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Defender {
     pub name: String,
     pub staying_power: u32,
@@ -63,7 +63,7 @@ pub struct Defender {
     pub pkd: Probability,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Attacker {
     pub name: String,
     pub target_name: String,
@@ -75,7 +75,7 @@ pub struct Attacker {
 // PROBABILITY  (resolved stochastically per run)
 // ============================================================
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(tag = "type")]
 pub enum Probability {
     #[serde(rename = "fixed")]

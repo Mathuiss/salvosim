@@ -1,14 +1,18 @@
 [scenario]
 name = "Tactical Briefing - IADS Penetration"
 description = "Interactive step-through demonstrating IADS penetration."
+iterations = 1000
 
 [[defenders]]
 name = "Coastal SAM Battery"
 staying_power = 2
 magazine_depth = 16
 max_engagement_capacity = 4
-doctrine = "max_defense"
-pkd = { type = "fixed", value = 0.75 }
+doctrine = "shoot-look-shoot"
+
+[defenders.pkd]
+type = "fixed"
+value = 0.75
 
 [[defenders]]
 name = "Bunker Point Defense"
@@ -16,16 +20,25 @@ staying_power = 4
 magazine_depth = 24
 max_engagement_capacity = 6
 doctrine = "shoot-look-shoot"
-pkd = { type = "fixed", value = 0.60 }
+
+[defenders.pkd]
+type = "fixed"
+value = 0.6
 
 [[attackers]]
 name = "Drone Swarm (Decoys)"
 target_name = "Coastal SAM Battery"
 salvo_schedule = [6, 6, 0]
-pko = { type = "fixed", value = 0.10 }
+
+[attackers.pko]
+type = "fixed"
+value = 0.1
 
 [[attackers]]
 name = "Precision Strike Aircraft"
 target_name = "Bunker Point Defense"
-salvo_schedule = [0, 0, 8]
-pko = { type = "fixed", value = 0.90 }
+salvo_schedule = [0, 0, 4]
+
+[attackers.pko]
+type = "fixed"
+value = 0.9
