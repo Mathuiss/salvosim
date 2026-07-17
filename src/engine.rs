@@ -102,96 +102,63 @@ fn sort_by_pkd(defenders: &mut [RunDefender]) {
     defenders.sort_by(|a, b| b.pkd.partial_cmp(&a.pkd).unwrap());
 }
 
-/// Attempt to intercept incoming threats.
+/// Attempt to intercept incoming threats using a two-phase model:
 ///
-/// Each threat is processed against defenders in PkD order. The behaviour
-/// of each defender depends on its `Doctrine`:
+/// **Phase 1 — Targeted self-defence.** Each threat is first offered to the
+/// specific defender it targets. That defender fires according to its doctrine.
 ///
-/// - **ShootLookShoot** — fire one interceptor, check the PkD roll. If it
-///   hits, the threat is intercepted and the next threat is considered.
-/// - **ShootShootLook** — salvo-launch up to two interceptors per threat.
-///   Both are committed before the outcome of the first is known (simulates
-///   a simultaneous salvo engagement).  If any interceptor hits, the threat
-///   is intercepted.
-/// - **MaxDefense** — fire *all* remaining engagement capacity at once.
-///   If *any* roll hits, the threat is intercepted.
+/// **Phase 2 — Cooperative overflow.** If the targeted defender cannot engage
+/// (destroyed, out of magazine, at launcher capacity, or all shots missed),
+/// the threat is re-offered to all surviving defenders with spare capacity in
+/// PkD order.  This models Aegis cooperative engagement: when a ship is
+/// saturated, the next-best shooter in the formation takes over.
+///
+/// | Doctrine | Behaviour |
+/// |---|---|
+/// | **ShootLookShoot** | Fire one interceptor; if it hits, threat down. If miss, try next defender. |
+/// | **ShootShootLook** | Salvo-launch up to two interceptors simultaneously. If any hits, threat down. |
+/// | **MaxDefense** | Fire all remaining launcher capacity at once. If any hits, threat down. |
 fn interception_phase(
     defenders: &mut [RunDefender],
     threat_pool: &[IncomingThreat],
     rng: &mut impl Rng,
 ) -> (Vec<IncomingThreat>, Vec<u32>) {
     let mut surviving: Vec<IncomingThreat> = Vec::new();
-    // Track how many engagements each defender has performed this step
-    // so we respect `max_engagement_capacity`.
-    let mut engagements_this_step = vec![0; defenders.len()];
+    // Track how many actual interceptors each defender has fired this step
+    // so we respect `max_engagement_capacity` (interceptor capacity per
+    // step before the launcher reloads from magazine).
+    let mut interceptors_fired: Vec<u32> = vec![0; defenders.len()];
     // Track how many threats each defender successfully intercepted.
     let mut intercepts: Vec<u32> = vec![0; defenders.len()];
 
     for threat in threat_pool {
-        let mut intercepted = false;
+        // ── Phase 1: Targeted self-defence ──────────────────────
+        let intercepted =
+            if let Some(idx) = defenders.iter().position(|d| d.name == threat.target_name) {
+                try_intercept(
+                    defenders,
+                    idx,
+                    &mut interceptors_fired,
+                    &mut intercepts,
+                    rng,
+                )
+            } else {
+                false
+            };
 
-        for (i, defender) in defenders.iter_mut().enumerate() {
-            if defender.staying_power == 0
-                || defender.magazine_depth == 0
-                || engagements_this_step[i] >= defender.max_engagement_capacity
-            {
-                continue;
-            }
-
-            match defender.doctrine {
-                Doctrine::ShootLookShoot => {
-                    // Fire one interceptor; if it hits, threat intercepted.
-                    defender.magazine_depth -= 1;
-                    engagements_this_step[i] += 1;
-                    if rng.random::<f64>() <= defender.pkd {
-                        intercepts[i] += 1;
-                        intercepted = true;
-                        break;
-                    }
-                }
-                Doctrine::ShootShootLook => {
-                    // Salvo-launch up to two interceptors simultaneously.
-                    // Both are committed regardless of the first hit; the
-                    // defender commits before knowing the outcome.
-                    let shots = defender
-                        .magazine_depth
-                        .min(2)
-                        .min(defender.max_engagement_capacity - engagements_this_step[i])
-                        as u32;
-                    defender.magazine_depth -= shots;
-                    engagements_this_step[i] += shots;
-
-                    // If any interceptor hits, the threat is intercepted.
-                    for _ in 0..shots {
-                        if rng.random::<f64>() <= defender.pkd {
-                            intercepts[i] += 1;
-                            intercepted = true;
-                            break;
-                        }
-                    }
-                }
-                Doctrine::MaxDefense => {
-                    // Fire all available capacity against this single threat.
-                    let available = defender
-                        .magazine_depth
-                        .min(defender.max_engagement_capacity - engagements_this_step[i]);
-                    defender.magazine_depth -= available;
-                    engagements_this_step[i] += available;
-
-                    // If ANY interceptor hits, the threat is defeated.
-                    for _ in 0..available {
-                        if rng.random::<f64>() <= defender.pkd {
-                            intercepted = true;
-                            break;
-                        }
-                    }
-                    if intercepted {
-                        intercepts[i] += 1;
-                        break;
-                    }
+        // ── Phase 2: Cooperative overflow ───────────────────────
+        let intercepted = if intercepted {
+            true
+        } else {
+            let mut done = false;
+            for i in 0..defenders.len() {
+                if try_intercept(defenders, i, &mut interceptors_fired, &mut intercepts, rng) {
+                    done = true;
+                    break;
                 }
             }
-        }
+            done
+        };
 
         if !intercepted {
             surviving.push(threat.clone());
@@ -199,6 +166,67 @@ fn interception_phase(
     }
 
     (surviving, intercepts)
+}
+
+/// Try to have one defender engage a threat.  Returns `true` if the threat
+/// was intercepted.
+///
+/// Checks capacity/magazine/staying-power before firing.  Mutates the
+/// defender's magazine and the step-level `interceptors_fired`/`intercepts`
+/// counters.
+fn try_intercept(
+    defenders: &mut [RunDefender],
+    idx: usize,
+    interceptors_fired: &mut [u32],
+    intercepts: &mut [u32],
+    rng: &mut impl Rng,
+) -> bool {
+    let defender = &mut defenders[idx];
+    if defender.staying_power == 0
+        || defender.magazine_depth == 0
+        || interceptors_fired[idx] >= defender.max_engagement_capacity
+    {
+        return false;
+    }
+
+    match defender.doctrine {
+        Doctrine::ShootLookShoot => {
+            defender.magazine_depth -= 1;
+            interceptors_fired[idx] += 1;
+            if rng.random::<f64>() <= defender.pkd {
+                intercepts[idx] += 1;
+                true
+            } else {
+                false
+            }
+        }
+        Doctrine::ShootShootLook => {
+            let shots = defender.magazine_depth.min(2) as u32;
+            defender.magazine_depth -= shots;
+            interceptors_fired[idx] += shots;
+            for _ in 0..shots {
+                if rng.random::<f64>() <= defender.pkd {
+                    intercepts[idx] += 1;
+                    return true;
+                }
+            }
+            false
+        }
+        Doctrine::MaxDefense => {
+            let available = defender
+                .magazine_depth
+                .min(defender.max_engagement_capacity - interceptors_fired[idx]);
+            defender.magazine_depth -= available;
+            interceptors_fired[idx] += available;
+            for _ in 0..available {
+                if rng.random::<f64>() <= defender.pkd {
+                    intercepts[idx] += 1;
+                    return true;
+                }
+            }
+            false
+        }
+    }
 }
 
 fn terminal_impact_phase(

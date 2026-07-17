@@ -1,0 +1,173 @@
+[scenario]
+name = "Operation Strait Breaker — Contested Hormuz Transit"
+description = "PLAN Surface Action Group (2× Type 055, 2× Type 052D, 1× Type 075) escorted by IRGCN small craft transits the Strait of Hormuz against a US NAVCENT blockade. CVN self-defence is modelled with a small magazine (SeaRAM/ESSM) backed by the cruiser and destroyers."
+iterations = 1000
+
+[[defenders]]
+name = "CVN-76 Nimitz"
+staying_power = 8
+magazine_depth = 24
+max_engagement_capacity = 6
+doctrine = "shoot-look-shoot"
+
+[defenders.pkd]
+type = "normal_distribution"
+mean = 0.9
+std_dev = 0.05
+
+[[defenders]]
+name = "CG-52 Ticonderoga"
+staying_power = 4
+magazine_depth = 96
+max_engagement_capacity = 96
+doctrine = "shoot-look-shoot"
+
+[defenders.pkd]
+type = "normal_distribution"
+mean = 0.8
+std_dev = 0.05
+
+[[defenders]]
+name = "DDG-101 Arleigh Burke"
+staying_power = 3
+magazine_depth = 72
+max_engagement_capacity = 72
+doctrine = "shoot-shoot-look"
+
+[defenders.pkd]
+type = "normal_distribution"
+mean = 0.8
+std_dev = 0.05
+
+[[defenders]]
+name = "DDG-102 Arleigh Burke"
+staying_power = 3
+magazine_depth = 72
+max_engagement_capacity = 72
+doctrine = "shoot-shoot-look"
+
+[defenders.pkd]
+type = "normal_distribution"
+mean = 0.8
+std_dev = 0.05
+
+[[defenders]]
+name = "DDG-103 Arleigh Burke"
+staying_power = 3
+magazine_depth = 72
+max_engagement_capacity = 72
+doctrine = "shoot-shoot-look"
+
+[defenders.pkd]
+type = "normal_distribution"
+mean = 0.8
+std_dev = 0.05
+
+[[attackers]]
+name = "Khalij-e Fars AShBM Salvo"
+target_name = "CVN-76 Nimitz"
+salvo_schedule = [8, 0, 0, 0]
+
+[attackers.pko]
+type = "normal_distribution"
+mean = 0.85
+std_dev = 0.08
+
+[[attackers]]
+name = "Iranian AShM Saturation (Noor/Qader)"
+target_name = "CG-52 Ticonderoga"
+salvo_schedule = [16, 0, 0, 0]
+
+[attackers.pko]
+type = "normal_distribution"
+mean = 0.85
+std_dev = 0.05
+
+[[attackers]]
+name = "Iranian Coastal AShM"
+target_name = "DDG-101 Arleigh Burke"
+salvo_schedule = [12, 0, 0, 0]
+
+[attackers.pko]
+type = "normal_distribution"
+mean = 0.9
+std_dev = 0.05
+
+[[attackers]]
+name = "Type 055 YJ-21 Hypersonic ASM"
+target_name = "CVN-76 Nimitz"
+salvo_schedule = [4, 4, 0, 0]
+
+[attackers.pko]
+type = "normal_distribution"
+mean = 0.95
+std_dev = 0.01
+
+[[attackers]]
+name = "Type 052D YJ-18 Supersonic ASM"
+target_name = "DDG-102 Arleigh Burke"
+salvo_schedule = [8, 8, 0, 0]
+
+[attackers.pko]
+type = "normal_distribution"
+mean = 0.95
+std_dev = 0.01
+
+[[attackers]]
+name = "Type 052D YJ-18 Supersonic ASM (2)"
+target_name = "DDG-103 Arleigh Burke"
+salvo_schedule = [8, 8, 0, 0]
+
+[attackers.pko]
+type = "normal_distribution"
+mean = 0.95
+std_dev = 0.05
+
+[[attackers]]
+name = "IRGCN Fast Boat Swarm (Decoys)"
+target_name = "CG-52 Ticonderoga"
+salvo_schedule = [0, 24, 0, 0]
+
+[attackers.pko]
+type = "normal_distribution"
+mean = 0.85
+std_dev = 0.05
+
+[[attackers]]
+name = "YJ-83 Subsonic Cruise Missile Salvo"
+target_name = "DDG-101 Arleigh Burke"
+salvo_schedule = [0, 12, 0, 0]
+
+[attackers.pko]
+type = "normal_distribution"
+mean = 0.85
+std_dev = 0.05
+
+[[attackers]]
+name = "Type 055 Terminal YJ-21 Salvo"
+target_name = "CVN-76 Nimitz"
+salvo_schedule = [0, 0, 16, 8]
+
+[attackers.pko]
+type = "normal_distribution"
+mean = 0.95
+std_dev = 0.01
+
+[[attackers]]
+name = "PLAN Air-Launched ASM (JH-7 / J-15)"
+target_name = "CG-52 Ticonderoga"
+salvo_schedule = [0, 0, 16, 8]
+
+[attackers.pko]
+type = "normal_distribution"
+mean = 0.85
+std_dev = 0.1
+
+[[attackers]]
+name = "Shahed-136"
+target_name = "CVN-76 Nimitz"
+salvo_schedule = [64, 0, 0, 0]
+
+[attackers.pko]
+type = "fixed"
+value = 0.8

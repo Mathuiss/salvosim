@@ -80,10 +80,10 @@
                     <label>Staying Power
                         <input type="number" class="def-hp" value="{{ d.staying_power }}" min="1">
                     </label>
-                    <label>Magazine
+                    <label>Total Magazine
                         <input type="number" class="def-mag" value="{{ d.magazine_depth }}" min="0">
                     </label>
-                    <label>Eng. Capacity
+                    <label>Launcher Cap. (per step)
                         <input type="number" class="def-cap" value="{{ d.max_engagement_capacity }}" min="0">
                     </label>
                 </div>
@@ -199,10 +199,10 @@
             <label>Staying Power
                 <input type="number" class="def-hp" value="3" min="1">
             </label>
-            <label>Magazine
+            <label>Total Magazine
                 <input type="number" class="def-mag" value="16" min="0">
             </label>
-            <label>Eng. Capacity
+            <label>Launcher Cap. (per step)
                 <input type="number" class="def-cap" value="8" min="0">
             </label>
         </div>

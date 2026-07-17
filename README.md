@@ -59,7 +59,7 @@ A defender is a platform (ship, SAM battery, bunker) with four attributes:
 | ------------------------- | ------------------------------------------------------------------ |
 | `staying_power`           | Hit points — how many leakers it can absorb before it is destroyed |
 | `magazine_depth`          | Total interceptor missiles available for the entire engagement     |
-| `max_engagement_capacity` | Maximum interceptors that can be fired per step                    |
+| `max_engagement_capacity` | Interceptor launcher capacity — maximum rounds fired per step before the launcher reloads from magazine.  At the start of each step the launcher is reloaded from `magazine_depth` (if rounds remain). |
 | `pkd`                     | Probability of Kill **per interceptor** against an incoming threat |
 
 A defender whose `staying_power` reaches zero is destroyed and takes no
@@ -92,38 +92,51 @@ PkD and PKO can be specified in three ways:
 
 | Doctrine             | Behaviour                                                                                                                                                                                                                                                                                                                                                       |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `"shoot-look-shoot"` | The defender fires **one** interceptor at a threat, checks PkD, and only fires a second if the first missed.  This conserves magazine depth but may leave threats unengaged when capacity is exhausted.                                                                                                                                                         |
-| `"shoot-shoot-look"` | The defender salvo-launches **two** interceptors simultaneously per threat.  Both are committed before the outcome of the first is known (simulates a simultaneous salvo engagement).  If any interceptor hits, the threat is intercepted.  Gives a higher per-threat kill probability than Shoot-Look-Shoot at the cost of more magazine depth per engagement. |
-| `"max_defense"`      | The defender fires **all remaining engagement capacity** at the same threat simultaneously.  If any interceptor hits, the threat is intercepted.  This maximises the chance of a kill per threat but burns magazine depth quickly.                                                                                                                              |
+| `"shoot-look-shoot"` | The defender fires **one** interceptor at a threat and rolls PkD.  If it hits, the threat is intercepted.  If it misses, the threat passes to the cooperative overflow phase (next-best defender in PkD order).  Each engagement uses 1 magazine round and 1 launcher capacity slot. Conserves magazine depth through shoot-look-assess. |
+| `"shoot-shoot-look"` | The defender salvo-launches **two** interceptors simultaneously per threat.  Both fly before the outcome is known; if any interceptor hits, the threat is intercepted.  Each engagement uses 2 magazine rounds and 2 launcher capacity slots. Gives a higher per-threat kill probability than Shoot-Look-Shoot at double the magazine cost. |
+| `"max_defense"`      | The defender fires **all remaining launcher capacity** at the same threat simultaneously.  If any interceptor hits, the threat is intercepted.  This maximises the per-threat kill probability but burns magazine and launcher capacity extremely quickly. Ideal for single high-value threats under saturation. |
 
 ### Simulation loop (per iteration)
 
 1. **Initialise** — copy each defender into a `RunDefender` with a fresh PkD
    draw from its probability distribution.  Reset magazine, staying power,
-   and threat pool.
+   and threat pool.  The launcher is loaded with up to
+   `max_engagement_capacity` rounds from the magazine.
 
 2. **For each time-step** (0 .. max steps):
    a. **Generate threats** — each attacker with a non-zero salvo in this
       step contributes that many incoming threats, each targeted at its
       configured defender.
-   b. **Sort defenders** by PkD descending (most effective shooters engage
-      first).
-   c. **Interception phase** — for each defender in sorted order:
-      - Group all threats targeting this defender.
-      - Apply the defender's doctrine:
-        *Shoot-Look-Shoot*: for each threat, fire one interceptor, roll
-        PkD.  If hit, the threat is intercepted and the next threat is
-        considered.  If miss and capacity remains, fire another.
-        *Shoot-Shoot-Look*: salvo-launch up to two interceptors simultaneously
-        per threat.  Both are committed before the outcome is known; if any
-        interceptor hits, the threat is intercepted.
-        *Max Defense*: fire all remaining engagement capacity at the first
-        threat.  If any roll hits, the threat is intercepted.
+   b. **Sort defenders** by PkD descending (most effective shooters are
+      tried first in the cooperative overflow phase).
+   c. **Interception phase** — a two-stage engagement model:
+      *Phase 1 — Targeted self-defence*: each threat is first offered to
+      the specific defender it targets.  That defender fires according to
+      its doctrine using its available launcher capacity.
+      *Phase 2 — Cooperative overflow*: if the targeted defender could not
+      intercept (destroyed, out of magazine, launcher at capacity, or all
+      shots missed), the threat is re-offered to **all** remaining
+      defenders with spare launcher capacity in PkD order (best shooter
+      first).  This models Aegis cooperative engagement: when a ship is
+      saturated, the next-most-effective shooter takes over.
       - Magazine is decremented by the number of interceptors actually
-        fired.
+        fired.  At the end of the step the launcher reloads from the
+        remaining magazine (up to `max_engagement_capacity` rounds) for
+        the next step.
    d. **Terminal impact** — each surviving threat rolls PKO against its
       target defender.  A successful roll reduces the defender's
       `staying_power` by 1.
+
+   **Doctrine effects within each engagement:**
+   - *Shoot-Look-Shoot*: fire one interceptor, roll PkD.  If hit, the
+     threat is intercepted.  If miss, the threat passes to the next
+     available defender (or survives if none remain).
+   - *Shoot-Shoot-Look*: salvo-launch up to two interceptors
+     simultaneously.  Both fly before the outcome is known; if any
+     interceptor hits, the threat is intercepted.  Uses 2 magazine rounds
+     and 2 launcher capacity slots per engagement.
+   - *Max Defense*: fire all remaining launcher capacity against the
+     threat.  If any roll hits, the threat is intercepted.
 
 3. **Record** — did each defender survive this iteration?  How many hits
    did it take?  How many interceptors did it fire?
@@ -288,7 +301,7 @@ pko = { type = "normal_distribution", mean = 0.75, std_dev = 0.08 }
 | `name`                    | string  | yes      | Unique identifier; other fields reference this name            |
 | `staying_power`           | integer | yes      | Hit points before the defender is destroyed (≥ 1)              |
 | `magazine_depth`          | integer | yes      | Total interceptor inventory for the entire engagement          |
-| `max_engagement_capacity` | integer | yes      | Maximum interceptors that can be fired per time-step           |
+| `max_engagement_capacity` | integer | yes      | Launcher salvo capacity — rounds fired per step before reloading from magazine.  At the start of each step the launcher reloads up to this many rounds from `magazine_depth` (if any remain). |
 | `doctrine`                | string  | yes      | `"shoot-look-shoot"`, `"shoot-shoot-look"`, or `"max_defense"` |
 | `pkd`                     | table   | yes      | PkD probability distribution (see below)                       |
 
